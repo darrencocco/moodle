@@ -815,6 +815,15 @@ class quiz_attempt {
     }
 
     /**
+     * Collection of changed sequence checks with
+     * their associated field names.
+     * @return array
+     */
+    public function get_updated_sequence_checks() {
+        return $this->quba->get_updated_sequence_checks();
+    }
+
+    /**
      * @return bool whether this attempt has been finished (true) or is still
      *     in progress (false). Be warned that this is not just state == self::FINISHED,
      *     it also includes self::ABANDONED.

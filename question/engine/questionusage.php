@@ -538,6 +538,26 @@ class question_usage_by_activity {
     }
 
     /**
+     * Returns the field names and values of sequence checks
+     * for any question attempt autosaves that were
+     * completed as full saves.
+     *
+     * @return array pairs of field name and value
+     */
+    public function get_updated_sequence_checks() {
+        $newsequencechecks = array();
+        foreach($this->questionattempts as $questionattempt) {
+            if ($questionattempt->sequence_check_changed()) {
+                $newsequencechecks[] = (object) [
+                    'name' => $questionattempt->get_control_field_name('sequencecheck'),
+                    'value' => $questionattempt->get_sequence_check()
+                ];
+            }
+        }
+        return $newsequencechecks;
+    }
+
+    /**
      * Start the attempt at a question that has been added to this usage.
      * @param int $slot the number used to identify this question within this usage.
      * @param int $variant which variant of the question to use. Must be between
@@ -777,7 +797,7 @@ class question_usage_by_activity {
         if (is_null($sequencecheck)) {
             return false;
         } else if ($sequencecheck != $qa->get_sequence_check_count()) {
-            return false;
+            throw new question_out_of_sequence_exception($this->id, $slot, $postdata);
         } else {
             return true;
         }

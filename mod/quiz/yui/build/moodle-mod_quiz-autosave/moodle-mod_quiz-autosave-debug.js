@@ -95,7 +95,8 @@ M.mod_quiz.autosave = {
         CHANGE_ELEMENTS:       'input, select',
         HIDDEN_INPUTS:         'input[type=hidden]',
         CONNECTION_ERROR:      '#connection-error',
-        CONNECTION_OK:         '#connection-ok'
+        CONNECTION_OK:         '#connection-ok',
+        AUTOSAVE_WARNING:        '#autosave-warning'
     },
 
     /**
@@ -347,12 +348,23 @@ M.mod_quiz.autosave = {
     },
 
     save_done: function(transactionid, response) {
-        if (response.responseText !== 'OK') {
+        var messages = [];
+        try {
+            messages = Y.JSON.parse((response.responseText));
+        } catch (e) {
+            Y.log(e.message, 'debug', 'moodle-mod_quiz-autosave');
+            this.save_failed(transactionid, response);
+            return;
+        }
+
+        if (messages.status !== 'OK') {
             // Because IIS is useless, Moodle can't send proper HTTP response
             // codes, so we have to detect failures manually.
             this.save_failed(transactionid, response);
             return;
         }
+
+        Y.Array.each(messages.newsequences, this.update_sequence_check, this);
 
         Y.log('Save completed.', 'debug', 'moodle-mod_quiz-autosave');
         this.save_transaction = null;
@@ -372,17 +384,27 @@ M.mod_quiz.autosave = {
         }
     },
 
-    save_failed: function() {
+    update_sequence_check: function (item) {
+        this.form.one('[name='+item.name+']').set('value', item.value);
+    },
+
+    save_failed: function(transactionid, response) {
         Y.log('Save failed.', 'debug', 'moodle-mod_quiz-autosave');
+        var messages = Y.JSON.parse((response.responseText));
         this.save_transaction = null;
 
         // We want to retry soon.
         this.start_save_timer();
 
         this.savefailures = Math.max(1, this.savefailures + 1);
-        if (this.savefailures === this.FAILURES_BEFORE_NOTIFY) {
+        if (messages.status === 'ERROR' && messages.errorcode == 42) {
+            Y.one(this.SELECTORS.CONNECTION_ERROR).hide();
+            Y.one(this.SELECTORS.CONNECTION_OK).hide();
+            Y.one(this.SELECTORS.AUTOSAVE_WARNING).show();
+        } else if (this.savefailures === this.FAILURES_BEFORE_NOTIFY) {
             Y.one(this.SELECTORS.CONNECTION_ERROR).show();
             Y.one(this.SELECTORS.CONNECTION_OK).hide();
+            Y.one(this.SELECTORS.AUTOSAVE_WARNING).hide();
         }
     },
 
@@ -401,4 +423,14 @@ M.mod_quiz.autosave = {
 };
 
 
-}, '@VERSION@', {"requires": ["base", "node", "event", "event-valuechange", "node-event-delegate", "io-form"]});
+}, '@VERSION@', {
+    "requires": [
+        "base",
+        "node",
+        "event",
+        "event-valuechange",
+        "node-event-delegate",
+        "io-form",
+        "json-parse"
+    ]
+});

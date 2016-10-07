@@ -155,6 +155,9 @@ class question_attempt {
     /** @var question_usage_observer tracks changes to the useage this attempt is part of.*/
     protected $observer;
 
+    /** @var int keeps track of the sequence number of a new standard save during auto-save calls */
+    protected $sequencecheck = -1;
+
     /**#@+
      * Constants used by the intereaction models to indicate whether the current
      * pending step should be kept or discarded.
@@ -1251,10 +1254,69 @@ class question_attempt {
     public function process_autosave($submitteddata, $timestamp = null, $userid = null) {
         $pendingstep = new question_attempt_pending_step($submitteddata, $timestamp, $userid);
         if ($this->behaviour->process_autosave($pendingstep) == self::KEEP) {
-            $this->add_autosaved_step($pendingstep);
+            if ($this->standard_save_pending($pendingstep)) {
+                //It has been long enough since the last standard save that we need to make another one
+                $this->add_step($pendingstep);
+                if ($pendingstep->response_summary_changed()) {
+                    $this->responsesummary = $pendingstep->get_new_response_summary();
+                }
+                if ($pendingstep->variant_number_changed()) {
+                    $this->variant = $pendingstep->get_new_variant_number();
+                }
+                $this->trigger_sequence_check_update();
+            } else {
+                $this->add_autosaved_step($pendingstep);
+            }
             return true;
         }
         return false;
+    }
+
+    /**
+     * Check if the regular full save setting is set and if sufficient
+     * time has lapsed since the last full save.
+     *
+     * @param question_attempt_pending_step $pendingstep the step being processed
+     * @return bool whether there it is overdue to perform a full save
+     */
+    private function standard_save_pending(question_attempt_pending_step $pendingstep) {
+        global $CFG;
+        if (get_config('quiz', 'autosaveconversionperiod') > 0 &&
+            end($this->steps)->get_timecreated() + get_config('quiz', 'autosaveconversionperiod') < $pendingstep->get_timecreated()) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Updates the sequence check number for this question attempt
+     * which will be collected and returned by the auto-save function.
+     */
+    protected function trigger_sequence_check_update() {
+        $this->sequencecheck = count($this->steps);
+    }
+
+    /**
+     * Indicates if the sequence check used in verifying
+     * that saves are in order has been changed.
+     *
+     * @return bool sequence check number updated
+     */
+    public function sequence_check_changed() {
+        if ($this->sequencecheck >= 0) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Returns an updated sequence check number or -1 if
+     * no change has been made.
+     *
+     * @return int current sequence check number or -1
+     */
+    public function get_sequence_check() {
+        return $this->sequencecheck;
     }
 
     /**
