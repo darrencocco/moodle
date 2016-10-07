@@ -216,6 +216,35 @@ class mod_quiz_mod_form extends moodleform_mod {
             $mform->disabledIf('attemptonlast', 'attempts', 'eq', 1);
         }
 
+        // Perform standard save during autosave call if certain time elapsed since last standard save
+        if ($quizconfig->autosaveconversioninterval > 0) {
+            $mform->addElement('selectyesno', 'autosaveconversionenabled', get_string('autosaveconversionenabled', 'quiz'));
+            $mform->addHelpButton('autosaveconversionenabled', 'autosaveconversionenabled', 'quiz');
+            $mform->setAdvanced('autosaveconversionenabled', $quizconfig->autosaveconversiondefault_adv);
+            if (!has_capability('mod/quiz:setautosaveconversion', $this->context)) {
+                $mform->freeze('autosaveconversionenabled');
+            }
+        } else {
+            $mform->addElement('hidden', 'autosaveconversionenabled');
+            $mform->setType('autosaveconversionenabled', PARAM_BOOL);
+
+        }
+        $mform->setDefault('autosaveconversionenabled', $quizconfig->autosaveconversiondefault);
+
+        // Allow user to use response replays during quiz
+        if ($quizconfig->responsereplayavailable == '1') {
+            $mform->addElement('selectyesno', 'responsereplayenabled', get_string('responsereplayenabled', 'quiz'));
+            $mform->addHelpButton('responsereplayenabled', 'responsereplayenabled', 'quiz');
+            $mform->setAdvanced('responsereplayenabled', $quizconfig->responsereplaydefault_adv);
+            if (!has_capability('mod/quiz:setresponsereplay', $this->context)) {
+                $mform->freeze('responsereplayenabled');
+            }
+        } else {
+            $mform->addElement('hidden', 'responsereplayenabled');
+            $mform->setType('responsereplayenabled', PARAM_BOOL);
+        }
+        $mform->setDefault('responsereplayenabled', $quizconfig->responsereplaydefault);
+
         // -------------------------------------------------------------------------------
         $mform->addElement('header', 'reviewoptionshdr',
                 get_string('reviewoptionsheading', 'quiz'));
@@ -519,6 +548,8 @@ class mod_quiz_mod_form extends moodleform_mod {
     public function validation($data, $files) {
         $errors = parent::validation($data, $files);
 
+        $quizconfig = get_config('quiz');
+
         // Check open and close times are consistent.
         if ($data['timeopen'] != 0 && $data['timeclose'] != 0 &&
                 $data['timeclose'] < $data['timeopen']) {
@@ -583,10 +614,61 @@ class mod_quiz_mod_form extends moodleform_mod {
             }
         }
 
+        // Check auto-save conversion
+        if($this->invalid_autosaveconversion_setting_change($data, $quizconfig)) {
+            $errors['autosaveconversionenabled'] =
+                get_string('autosaveconversionenabledinvaliddata', 'quiz');
+        }
+
+
+        // Check response rollback
+        if($this->invalid_responsereplay_setting_change($data, $quizconfig)) {
+            $errors['responsereplayenabled'] =
+                get_string('responsereplayenabledinvaliddata', 'quiz');
+        }
+
         // Any other rule plugins.
         $errors = quiz_access_manager::validate_settings_form_fields($errors, $data, $files, $this);
 
         return $errors;
+    }
+
+    private function invalid_autosaveconversion_setting_change(array &$data, stdClass &$quizconfig) {
+        // They have permission to set it so it should be valid as long as it passes standard form controls
+        if (has_capability('mod/quiz:setautosaveconversion', $this->context)) {
+            return false;
+        }
+        // It hasn't been changed from the previous value so they haven't modified it
+        if (isset($this->get_current()->autosaveconversionenabled) &&
+            $data['autosaveconversionenabled'] == $this->get_current()->autosaveconversionenabled) {
+            return false;
+        }
+        // It has never been set in the past and it matches the global default
+        if (!isset($this->get_current()->autosaveconversionenabled) &&
+            $data['autosaveconversionenabled'] == $quizconfig->autosaveconversiondefault) {
+            return false;
+        }
+        // Invalid value
+        return true;
+    }
+
+    private function invalid_responsereplay_setting_change(array &$data, stdClass &$quizconfig) {
+        // They have permission to set it so it should be valid as long as it passes standard form controls
+        if (has_capability('mod/quiz:setresponsereplay', $this->context)) {
+            return false;
+        }
+        // It hasn't been changed from the previous value so they haven't modified it
+        if (isset($this->get_current()->autosaveconversionenabled) &&
+            $data['responsereplayenabled'] == $this->get_current()->responsereplayenabled) {
+            return false;
+        }
+        // It has never been set in the past and it matches the global default
+        if (!isset($this->get_current()->autosaveconversionenabled) &&
+            $data['responsereplayenabled'] == $quizconfig->responsereplaydefault) {
+            return false;
+        }
+        // Invalid value
+        return true;
     }
 
     /**

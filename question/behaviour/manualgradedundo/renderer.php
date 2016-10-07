@@ -15,34 +15,27 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Question behaviour type for deferred feedback behaviour.
+ * Defines the renderer for the manual graded behaviour.
  *
- * @package    qbehaviour_deferredfeedback
- * @copyright  2012 The Open University
+ * @package    qbehaviour
+ * @subpackage manualgraded
+ * @copyright  2009 The Open University
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 
 defined('MOODLE_INTERNAL') || die();
-
+require_once($CFG->dirroot . '/question/behaviour/manualgraded/renderer.php');
 
 /**
- * Question behaviour type information for deferred feedback behaviour.
+ * Renderer for outputting parts of a question belonging to the manual
+ * graded behaviour.
  *
- * @copyright  2012 The Open University
+ * @copyright  2009 The Open University
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class qbehaviour_deferredfeedback_type extends question_behaviour_type {
-    public function is_archetypal() {
-        return true;
-    }
-
-    public function get_unused_display_options() {
-        return array('correctness', 'marks', 'specificfeedback', 'generalfeedback',
-                'rightanswer');
-    }
-
-    public function allows_response_replay() {
-        return true;
+class qbehaviour_manualgradedundo_renderer extends qbehaviour_manualgraded_renderer {
+    public function controls(question_attempt $qa, question_display_options $options) {
+        return $this->replay_button($qa, $options);
     }
 }

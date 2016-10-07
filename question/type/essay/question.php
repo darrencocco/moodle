@@ -53,7 +53,14 @@ class qtype_essay_question extends question_with_responses {
     public $responsetemplateformat;
 
     public function make_behaviour(question_attempt $qa, $preferredbehaviour) {
-        return question_engine::make_behaviour('manualgraded', $qa, $preferredbehaviour);
+        // Loads preferred behaviours type and checks if it allows response replay
+        // if it does then the manual grade with undo behaviour is used.
+        $preferredbehaviourtype = question_engine::get_behaviour_type($preferredbehaviour);
+        if ($preferredbehaviourtype->allows_response_replay()) {
+            return question_engine::make_behaviour('manualgradedundo', $qa, $preferredbehaviour);
+        } else {
+            return question_engine::make_behaviour('manualgraded', $qa, $preferredbehaviour);
+        }
     }
 
     /**

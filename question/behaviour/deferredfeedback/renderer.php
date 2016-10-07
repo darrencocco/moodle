@@ -35,4 +35,7 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class qbehaviour_deferredfeedback_renderer extends qbehaviour_renderer {
+    public function controls(question_attempt $qa, question_display_options $options) {
+        $this->replay_button($qa, $options);
+    }
 }

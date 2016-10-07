@@ -538,6 +538,26 @@ class question_usage_by_activity {
     }
 
     /**
+     * Returns the field names and values of sequence checks
+     * for any question attempt autosaves that were
+     * completed as full saves.
+     *
+     * @return array pairs of field name and value
+     */
+    public function get_updated_sequence_checks() {
+        $newsequencechecks = array();
+        foreach($this->questionattempts as $questionattempt) {
+            if ($questionattempt->sequence_check_changed()) {
+                $newsequencechecks[] = (object) [
+                    'name' => $questionattempt->get_control_field_name('sequencecheck'),
+                    'value' => $questionattempt->get_sequence_check()
+                ];
+            }
+        }
+        return $newsequencechecks;
+    }
+
+    /**
      * Start the attempt at a question that has been added to this usage.
      * @param int $slot the number used to identify this question within this usage.
      * @param int $variant which variant of the question to use. Must be between
@@ -598,17 +618,61 @@ class question_usage_by_activity {
      *
      * @param int $timestamp optional, use this timestamp as 'now'.
      * @param array $postdata optional, only intended for testing. Use this data
+     * @param bool $responsereplayenabled
      * instead of the data from $_POST.
      */
-    public function process_all_actions($timestamp = null, $postdata = null) {
+    public function process_all_actions($timestamp = null, $postdata = null, $responsereplayenabled = false) {
         foreach ($this->get_slots_in_request($postdata) as $slot) {
             if (!$this->validate_sequence_number($slot, $postdata)) {
                 continue;
             }
             $submitteddata = $this->extract_responses($slot, $postdata);
             $this->process_action($slot, $submitteddata, $timestamp);
+            if ($responsereplayenabled && $this->replay_requested_and_allowed($slot, $postdata)) {
+                $replaydata = $this->get_question_attempt($slot)
+                    ->get_step($this->get_replay_step($slot, $postdata))->get_submitted_data();
+                $this->process_action($slot, $replaydata, $timestamp);
+            }
         }
         $this->update_question_flags($postdata);
+    }
+
+    /**
+     * Checks if a replay request has been made and if settings allow the such a step.
+     *
+     * Checks if control field has data and if it does hands off to
+     * @see question_attempt::replay_requested_and_allowed() which
+     * performs additional verification including behaviour and question
+     * compatibility checks
+     *
+     * @param int $slot The slot number to be checked
+     * @param null $postdata Simulated POST data for testing
+     * @return bool Whether or not a replay request must be processed
+     */
+    public function replay_requested_and_allowed($slot, $postdata = null) {
+        $qa = $this->get_question_attempt($slot);
+        $replaystep = $this->get_replay_step($slot, $postdata);
+        if (is_null($replaystep) || !$qa->replay_requested_and_allowed($replaystep)) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    /**
+     * Gets the request replay sequence/step number if any.
+     *
+     * Refers to the control field with the name replay for the
+     * slot in question to retrieve the data.
+     *
+     * @param int $slot The slot number to extract data for
+     * @param null $postdata Simulated POST data for testing
+     * @return int The step/sequence number requested
+     */
+    private function get_replay_step($slot, $postdata = null) {
+        $qa = $this->get_question_attempt($slot);
+        return $qa->get_submitted_var(
+            $qa->get_behaviour_field_name('replaysequence'), PARAM_INT, $postdata);
     }
 
     /**
@@ -624,13 +688,13 @@ class question_usage_by_activity {
      * @param array $postdata optional, only intended for testing. Use this data
      * instead of the data from $_POST.
      */
-    public function process_all_autosaves($timestamp = null, $postdata = null) {
+    public function process_all_autosaves($timestamp = null, $postdata = null, $conversionenabled = false, $conversioninterval = 0) {
         foreach ($this->get_slots_in_request($postdata) as $slot) {
             if (!$this->is_autosave_required($slot, $postdata)) {
                 continue;
             }
             $submitteddata = $this->extract_responses($slot, $postdata);
-            $this->process_autosave($slot, $submitteddata, $timestamp);
+            $this->process_autosave($slot, $submitteddata, $timestamp, $conversionenabled, $conversioninterval);
         }
         $this->update_question_flags($postdata);
     }
@@ -734,9 +798,9 @@ class question_usage_by_activity {
      * @param int $slot the number used to identify this question within this usage.
      * @param $submitteddata the submitted data that constitutes the action.
      */
-    public function process_autosave($slot, $submitteddata, $timestamp = null) {
+    public function process_autosave($slot, $submitteddata, $timestamp = null, $conversionenabled = false, $conversioninterval = 0) {
         $qa = $this->get_question_attempt($slot);
-        if ($qa->process_autosave($submitteddata, $timestamp)) {
+        if ($qa->process_autosave($submitteddata, $timestamp, null, $conversionenabled, $conversioninterval)) {
             $this->observer->notify_attempt_modified($qa);
         }
     }
@@ -748,20 +812,45 @@ class question_usage_by_activity {
      * variable is present and wrong, throws an exception.
      * @param int $slot the number used to identify this question within this usage.
      * @param array $submitteddata the submitted data that constitutes the action.
+     * @param int $savetype What type of save is this intended to be.
      * @return bool true if the check variable is present and correct. False if it
      * is missing. (Throws an exception if the check fails.)
      */
-    public function validate_sequence_number($slot, $postdata = null) {
+    public function validate_sequence_number($slot, $postdata = null, $savetype = question_attempt_step::SAVE_TYPE_STANDARD) {
         $qa = $this->get_question_attempt($slot);
         $sequencecheck = $qa->get_submitted_var(
                 $qa->get_control_field_name('sequencecheck'), PARAM_INT, $postdata);
         if (is_null($sequencecheck)) {
             return false;
-        } else if ($sequencecheck != $qa->get_sequence_check_count()) {
+        } else if ($sequencecheck != $qa->get_sequence_check_count() &&
+            !$this->is_permitted_concurrency_event($qa, $sequencecheck, $savetype)) {
             throw new question_out_of_sequence_exception($this->id, $slot, $postdata);
         } else {
             return true;
         }
+    }
+
+    /**
+     * Checks if this is a case where an out of sequence save may be accepted due to a possible quirk.
+     *
+     * This is stupidly complicated but necessary to handle rare concurrency cases
+     * Essentially this checks to see if the sequence of the submitted response is exactly one behind
+     * AND if the previous save was a auto-save that was converted to a normal save AND the new save
+     * is a standard save then it should be retained. This can apparently occur when an auto-save is
+     * started and the user clicks the next button in a very small time frame.
+     *
+     * @param question_attempt $qa
+     * @param integer $sequencecheck
+     * @param integer $newsavetype
+     * @return bool
+     */
+    public function is_permitted_concurrency_event(question_attempt $qa, $sequencecheck, $newsavetype) {
+        if ($qa->get_last_step()->get_save_type() === question_attempt_step::SAVE_TYPE_CONVERTEDAUTOSAVE &&
+            $newsavetype === question_attempt_step::SAVE_TYPE_STANDARD &&
+            $qa->get_sequence_check_count() - $sequencecheck === 1) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -777,7 +866,7 @@ class question_usage_by_activity {
         if (is_null($sequencecheck)) {
             return false;
         } else if ($sequencecheck != $qa->get_sequence_check_count()) {
-            return false;
+            throw new question_out_of_sequence_exception($this->id, $slot, $postdata);
         } else {
             return true;
         }

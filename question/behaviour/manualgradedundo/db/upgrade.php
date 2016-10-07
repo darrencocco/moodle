@@ -15,16 +15,32 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Quiz activity version information.
+ * Post-install script for the manual graded question behaviour.
  *
- * @package   mod_quiz
- * @copyright 1999 onwards Martin Dougiamas  {@link http://moodle.com}
+ * @package   qbehaviour_manualgraded
+ * @copyright 2013 The Open Universtiy
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2016052305;
-$plugin->requires  = 2016051900;
-$plugin->component = 'mod_quiz';
-$plugin->cron      = 60;
+/**
+ * Manual graded question behaviour upgrade code.
+ */
+function xmldb_qbehaviour_manualgradedundo_upgrade($oldversion) {
+    global $CFG;
+
+    // Moodle v2.8.0 release upgrade line.
+    // Put any upgrade step following this.
+
+    // Moodle v2.9.0 release upgrade line.
+    // Put any upgrade step following this.
+
+    // Moodle v3.0.0 release upgrade line.
+    // Put any upgrade step following this.
+
+    // Moodle v3.1.0 release upgrade line.
+    // Put any upgrade step following this.
+
+    return true;
+}

@@ -15,34 +15,27 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Question behaviour type for deferred feedback behaviour.
+ * Question behaviour for questions that can only be graded manually.
  *
- * @package    qbehaviour_deferredfeedback
- * @copyright  2012 The Open University
+ * @package    qbehaviour
+ * @subpackage manualgraded
+ * @copyright  2009 The Open University
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 
 defined('MOODLE_INTERNAL') || die();
-
+require_once($CFG->dirroot . '/question/behaviour/manualgraded/behaviour.php');
 
 /**
- * Question behaviour type information for deferred feedback behaviour.
+ * Question behaviour for questions that can only be graded manually.
  *
- * @copyright  2012 The Open University
+ * The student enters their response during the attempt, and it is saved. Later,
+ * when the whole attempt is finished, the attempt goes into the NEEDS_GRADING
+ * state, and the teacher must grade it manually.
+ *
+ * @copyright  2009 The Open University
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class qbehaviour_deferredfeedback_type extends question_behaviour_type {
-    public function is_archetypal() {
-        return true;
-    }
-
-    public function get_unused_display_options() {
-        return array('correctness', 'marks', 'specificfeedback', 'generalfeedback',
-                'rightanswer');
-    }
-
-    public function allows_response_replay() {
-        return true;
-    }
+class qbehaviour_manualgradedundo extends qbehaviour_manualgraded {
 }

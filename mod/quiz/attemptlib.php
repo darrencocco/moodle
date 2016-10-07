@@ -815,6 +815,15 @@ class quiz_attempt {
     }
 
     /**
+     * Collection of changed sequence checks with
+     * their associated field names.
+     * @return array
+     */
+    public function get_updated_sequence_checks() {
+        return $this->quba->get_updated_sequence_checks();
+    }
+
+    /**
      * @return bool whether this attempt has been finished (true) or is still
      *     in progress (false). Be warned that this is not just state == self::FINISHED,
      *     it also includes self::ABANDONED.
@@ -1533,6 +1542,10 @@ class quiz_attempt {
             }
         }
 
+        if ($this->can_replay_responses()) {
+            $displayoptions->replayresponse = 1;
+        }
+
         if ($seq === null) {
             $output = $this->quba->render_question($slot, $displayoptions, $number);
         } else {
@@ -1544,6 +1557,15 @@ class quiz_attempt {
         }
 
         return $output;
+    }
+
+    /**
+     * Is response replay enabled.
+     *
+     * @return bool
+     */
+    public function can_replay_responses() {
+        return $this->get_quiz()->responsereplayenabled === '1' && get_config('quiz','responsereplayavailable') === '1'?true:false;
     }
 
     /**
@@ -1815,7 +1837,7 @@ class quiz_attempt {
             $simulatedpostdata = null;
         }
 
-        $this->quba->process_all_actions($timestamp, $simulatedpostdata);
+        $this->quba->process_all_actions($timestamp, $simulatedpostdata, $this->can_replay_responses());
         question_engine::save_questions_usage_by_activity($this->quba);
 
         $this->attempt->timemodified = $timestamp;
@@ -1897,12 +1919,18 @@ class quiz_attempt {
      * @param int $timestamp the timestamp that should be stored as the modifed
      * time in the database for these actions. If null, will use the current time.
      */
-    public function process_auto_save($timestamp) {
+    public function process_auto_save($timestamp, array $postdata = null) {
         global $DB;
 
         $transaction = $DB->start_delegated_transaction();
 
-        $this->quba->process_all_autosaves($timestamp);
+        $conversioninterval = $this->get_quiz()->autosaveconversionenabled == '1' ? get_config('quiz', 'autosaveconversioninterval') : 0;
+
+        if ($postdata !== null) {
+            $this->quba->process_all_autosaves($timestamp, $this->quba->prepare_simulated_post_data($postdata), $conversioninterval);
+        } else {
+            $this->quba->process_all_autosaves($timestamp, null, $conversioninterval);
+        }
         question_engine::save_questions_usage_by_activity($this->quba);
 
         $transaction->allow_commit();

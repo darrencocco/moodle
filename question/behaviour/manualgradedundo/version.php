@@ -15,16 +15,19 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Quiz activity version information.
+ * Version information for the calculated question type.
  *
- * @package   mod_quiz
- * @copyright 1999 onwards Martin Dougiamas  {@link http://moodle.com}
- * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @package    qbehaviour
+ * @subpackage manualgraded
+ * @copyright  2011 The Open University
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2016052305;
+$plugin->component = 'qbehaviour_manualgradedundo';
+$plugin->version   = 2016052302;
+
 $plugin->requires  = 2016051900;
-$plugin->component = 'mod_quiz';
-$plugin->cron      = 60;
+
+$plugin->maturity  = MATURITY_STABLE;

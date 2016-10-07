@@ -22,6 +22,13 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+$string['nostepsavailablemessage'] = 'There are no previous saved versions available to roll back to';
+$string['selectsaveforreplay'] = 'Available saves';
+$string['replaydialoguewarningmessage'] = 'You must select previous save to roll back to.';
+$string['replay'] = 'Oh shit!';
+$string['elapsedminutes'] = 'minutes ago';
+$string['replaystep'] = 'Rollback';
+$string['replaydialoguetitle'] = 'Rollback to previous save';
 $string['addmorechoiceblanks'] = 'Blanks for {no} more choices';
 $string['addcategory'] = 'Add category';
 $string['adminreport'] = 'Report on possible problems in your question database.';

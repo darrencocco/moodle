@@ -15,16 +15,26 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Quiz activity version information.
+ * Question behaviour type for manually graded behaviour.
  *
- * @package   mod_quiz
- * @copyright 1999 onwards Martin Dougiamas  {@link http://moodle.com}
- * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @package    qbehaviour_manualgraded
+ * @copyright  2012 The Open University
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2016052305;
-$plugin->requires  = 2016051900;
-$plugin->component = 'mod_quiz';
-$plugin->cron      = 60;
+defined('MOODLE_INTERNAL') || die();
+require_once($CFG->dirroot . '/question/behaviour/manualgraded/behaviourtype.php');
+
+
+/**
+ * Question behaviour type information for manually graded behaviour.
+ *
+ * @copyright  2012 The Open University
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+class qbehaviour_manualgradedundo_type extends qbehaviour_manualgraded_type {
+    public function allows_response_replay() {
+        return true;
+    }
+}

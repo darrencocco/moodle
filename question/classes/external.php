@@ -112,4 +112,78 @@ class core_question_external extends external_api {
             )
         );
     }
+
+    /**
+     * Returns description of method parameters
+     *
+     * @return external_function_parameters
+     */
+    public static function get_steps_parameters() {
+        return new external_function_parameters (
+            array(
+                'questionattempt' => new external_value(PARAM_INT, 'question attempt id'),
+                'preflightdata' => new external_multiple_structure(
+                    new external_single_structure(
+                        array(
+                            'name' => new external_value(PARAM_ALPHANUMEXT, 'data name'),
+                            'value' => new external_value(PARAM_RAW, 'data value'),
+                        )
+                    ), 'Preflight required data (like passwords)', VALUE_DEFAULT, array()
+                )
+            )
+        );
+    }
+
+    /**
+     * Get the step metadata recorded for a question attempt
+     * @param int $questionattempt The question_attempt ID
+     * @param array $preflightdata
+     * @return array
+     */
+    public static function get_steps($questionattempt, $preflightdata = array()) {
+        $warnings = array();
+
+        $params = array(
+            'questionattempt' => $questionattempt,
+            'preflightdata' => $preflightdata,
+        );
+        $params = self::validate_parameters(self::get_steps_parameters(), $params);
+
+        $dm = new question_engine_data_mapper();
+        $qa = $dm->load_question_attempt($params['questionattempt']);
+
+        $steps = $qa->get_step_iterator();
+        $results = array();
+        $stepdata = array();
+        foreach ($steps as $index => $step) {
+            $stepdata[] = array (
+                'stepnumber' => $index,
+                'timecreated' => $step->get_timecreated()
+            );
+        }
+        $results['steps'] = $stepdata;
+        $results['warnings'] = $warnings;
+        return $results;
+    }
+
+    /**
+     * Returns description of method result value
+     *
+     * @return external_single_structure
+     */
+    public static function get_steps_returns() {
+        return new external_single_structure(
+            array (
+                'steps' => new external_multiple_structure(
+                    new external_single_structure(
+                        array(
+                            'stepnumber' => new external_value(PARAM_INT, 'ID number of the step'),
+                            'timecreated' => new external_value(PARAM_INT, 'When the step was saved'),
+                        )
+                    )
+                ),
+                'warnings' => new external_warnings()
+            )
+        );
+    }
 }

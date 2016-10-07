@@ -193,5 +193,19 @@ function xmldb_quiz_upgrade($oldversion) {
     // Moodle v3.1.0 release upgrade line.
     // Put any upgrade step following this.
 
+    if ($oldversion < 2016052302) {
+        $table = new xmldb_table('quiz');
+
+        $field1 = new xmldb_field('autosaveconversionenabled', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, 0);
+        $field2 = new xmldb_field('responsereplayenabled', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, 0);
+
+        if (!$dbman->field_exists($table, $field1)) {
+            $dbman->add_field($table, $field1);
+        }
+        if (!$dbman->field_exists($table, $field2)) {
+            $dbman->add_field($table, $field2);
+        }
+    }
+
     return true;
 }

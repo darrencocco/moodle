@@ -614,6 +614,7 @@ class question_usage_autosave_test extends qbehaviour_walkthrough_test_base {
         $this->load_quba();
         $postdata = $this->response_data_to_post(array('answer' => 'obsolete response'));
         $postdata[$this->quba->get_field_prefix($this->slot) . ':sequencecheck'] = $this->get_question_attempt()->get_sequence_check_count() - 1;
+        $this->setExpectedException('question_out_of_sequence_exception');
         $this->quba->process_all_autosaves(null, $postdata);
         $this->check_current_state(question_state::$complete);
         $this->check_current_mark(null);
@@ -684,6 +685,144 @@ class question_usage_autosave_test extends qbehaviour_walkthrough_test_base {
         $this->check_output_contains_hidden_input(':sequencecheck', 4);
 
         $this->delete_quba();
+    }
+
+    public function test_autosave_conversion() {
+        $this->resetAfterTest();
+        $generator = $this->getDataGenerator()->get_plugin_generator('core_question');
+        $cat = $generator->create_question_category();
+        $question = $generator->create_question('shortanswer', null,
+            array('category' => $cat->id));
+
+        // Start attempt at a shortanswer question.
+        $q = question_bank::load_question($question->id);
+        $this->start_attempt_at_question($q, 'deferredfeedback', 1);
+
+        $this->check_current_state(question_state::$todo);
+        $this->check_current_mark(null);
+        $this->check_step_count(1);
+
+        $starttime = 1451610061;
+        // Process a response and check the expected result.
+        $this->process_submission_with_time($starttime, array('answer' => 'first response'));
+        $this->check_current_state(question_state::$complete);
+        $this->check_current_mark(null);
+        $this->check_step_count(2);
+        $this->save_quba();
+
+        // Now check how that is re-displayed.
+        $this->render();
+        $this->check_output_contains_text_input('answer', 'first response');
+        $this->check_output_contains_hidden_input(':sequencecheck', 2);
+
+        // Process an autosave.
+        $this->load_quba();
+        $this->quba->process_all_autosaves($starttime+30, $this->response_data_to_post(array('answer' => 'second response')), true, 60);
+        $this->check_current_state(question_state::$complete);
+        $this->check_current_mark(null);
+        $this->check_step_count(3);
+        $this->save_quba();
+
+        // Now check how that is re-displayed.
+        $this->load_quba();
+        $this->render();
+        $this->check_output_contains_text_input('answer', 'second response');
+        $this->check_output_contains_hidden_input(':sequencecheck', 2);
+
+        // Process an autosave with conversion.
+        $this->load_quba();
+        $this->quba->process_all_autosaves($starttime+60, $this->response_data_to_post(array('answer' => 'third response')), true, 60);
+        $this->check_current_state(question_state::$complete);
+        $this->check_current_mark(null);
+        $this->check_step_count(3);
+        $this->save_quba();
+
+        // Now check how that is re-displayed.
+        $this->load_quba();
+        $this->render();
+        $this->check_output_contains_text_input('answer', 'third response');
+        $this->check_output_contains_hidden_input(':sequencecheck', 3);
+    }
+
+    public function test_autosave_conversion_and_save_concurrently() {
+        // This test simulates the following scenario:
+        // 1. Student looking at a page of the quiz, and edits a field then waits.
+        // 2. Autosave with conversion starts.
+        // 3. Student immediately clicks Next, which submits the current page.
+        // In this situation, the real submit should beat the autosave, even
+        // thought they happen concurrently. We simulate this by opening a
+        // second db connections.
+        global $DB;
+
+        // Open second connection
+        $cfg = $DB->export_dbconfig();
+        if (!isset($cfg->dboptions)) {
+            $cfg->dboptions = array();
+        }
+        $DB2 = moodle_database::get_driver_instance($cfg->dbtype, $cfg->dblibrary);
+        $DB2->connect($cfg->dbhost, $cfg->dbuser, $cfg->dbpass, $cfg->dbname, $cfg->prefix, $cfg->dboptions);
+
+        // Since we need to commit our transactions in a given order, close the
+        // standard unit test transaction.
+        $this->preventResetByRollback();
+
+        $starttime = 1451610061;
+        $this->resetAfterTest();
+        $generator = $this->getDataGenerator()->get_plugin_generator('core_question');
+        $cat = $generator->create_question_category();
+        $question = $generator->create_question('shortanswer', null,
+            array('category' => $cat->id));
+
+        // Start attempt at a shortanswer question.
+        $q = question_bank::load_question($question->id);
+        $this->start_attempt_at_question($q, 'deferredfeedback', 1);
+
+        $this->check_current_state(question_state::$todo);
+        $this->check_current_mark(null);
+        $this->check_step_count(1);
+
+        $starttime = 1451610061;
+        // Process a response and check the expected result.
+        $this->process_submission_with_time($starttime, array('answer' => 'first response'));
+        $this->check_current_state(question_state::$complete);
+        $this->check_current_mark(null);
+        $this->check_step_count(2);
+        $this->save_quba();
+
+        // Start to process an autosave on $DB.
+        $transaction = $DB->start_delegated_transaction();
+        $this->load_quba($DB);
+        $this->quba->process_all_autosaves($starttime+60, $this->response_data_to_post(array('answer' => 'autosaved response')), true, 60);
+        $this->check_current_state(question_state::$complete);
+        $this->check_current_mark(null);
+        $this->check_step_count(3);
+        $this->save_quba($DB); // Don't commit the transaction yet.
+
+        // Now process a real submit on $DB2 (using a different response).
+        $transaction2 = $DB2->start_delegated_transaction();
+        $this->load_quba($DB2);
+        $this->process_submission_with_time($starttime+60, array('answer' => 'real response'));
+        $this->check_current_state(question_state::$complete);
+        $this->check_current_mark(null);
+        $this->check_step_count(3);
+
+        // Now commit the first transaction.
+        $transaction->allow_commit();
+
+        // Now commit the other transaction.
+        $this->save_quba($DB2);
+        $transaction2->allow_commit();
+
+        // Now re-load and check how that is re-displayed.
+        $this->load_quba();
+        $this->check_current_state(question_state::$complete);
+        $this->check_current_mark(null);
+        $this->check_step_count(3);
+        $this->render();
+        $this->check_output_contains_text_input('answer', 'real response');
+        $this->check_output_contains_hidden_input(':sequencecheck', 3);
+
+        $DB2->dispose();
     }
 
     protected function tearDown() {

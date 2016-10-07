@@ -2069,6 +2069,30 @@ function xmldb_main_upgrade($oldversion) {
         upgrade_main_savepoint(true, 2016051700.01);
     }
 
+    if ($oldversion < 2016052301.06) {
+        // Define field savetype to be added to question_attempt_steps.
+        $table = new xmldb_table('question_attempt_steps');
+        $field = new xmldb_field('savetype', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '1', 'userid');
+        $indexold = new xmldb_index('questionattemptid-sequencenumber', XMLDB_INDEX_UNIQUE, array('questionattemptid', 'sequencenumber', 'savetype'));
+        $indexnew = new xmldb_index('questionattemptid-sequencenumber-savetype', XMLDB_INDEX_UNIQUE, array('questionattemptid', 'sequencenumber'));
+
+        // Conditionally launch add field savetype.
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        // Conditionally launch drop index questionattemptid-sequencenumber.
+        if ($dbman->index_exists($table, $indexold)) {
+            $dbman->drop_index($table, $indexold);
+        }
+        // Conditionally launch add index questionattemptid-sequencenumber-savetype.
+        if (!$dbman->index_exists($table, $indexnew)) {
+            $dbman->add_index($table, $indexnew);
+        }
+
+        // Main savepoint reached.
+        upgrade_main_savepoint(true, 2016052301.06);
+    }
+
     // Moodle v3.1.0 release upgrade line.
     // Put any upgrade step following this.
 

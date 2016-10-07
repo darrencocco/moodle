@@ -750,6 +750,16 @@ abstract class qbehaviour_walkthrough_test_base extends question_testcase {
         $this->quba->process_all_actions(time(), $this->response_data_to_post($data));
     }
 
+    protected function process_submission_with_time ($timestamp, $data) {
+        // Backwards compatibility.
+        reset($data);
+        if (count($data) == 1 && key($data) === '-finish') {
+            $this->finish();
+        }
+
+        $this->quba->process_all_actions($timestamp, $this->response_data_to_post($data));
+    }
+
     protected function process_autosave($data) {
         $this->quba->process_all_autosaves(null, $this->response_data_to_post($data));
     }

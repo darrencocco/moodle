@@ -166,6 +166,7 @@ class question_engine_data_mapper {
         $record->fraction = $step->get_fraction();
         $record->timecreated = $step->get_timecreated();
         $record->userid = $step->get_user_id();
+        $record->savetype = $step->get_save_type();
         return $record;
     }
 
@@ -314,6 +315,7 @@ SELECT
     qas.fraction,
     qas.timecreated,
     qas.userid,
+    qas.savetype,
     qasd.name,
     qasd.value
 
@@ -373,6 +375,7 @@ SELECT
     qas.fraction,
     qas.timecreated,
     qas.userid,
+    qas.savetype,
     qasd.name,
     qasd.value
 
@@ -437,6 +440,7 @@ SELECT
     qas.fraction,
     qas.timecreated,
     qas.userid,
+    qas.savetype,
     qasd.name,
     qasd.value
 
@@ -499,6 +503,7 @@ SELECT
     qas.fraction,
     qas.timecreated,
     qas.userid,
+    qas.savetype,
     qasd.name,
     qasd.value
 
@@ -566,7 +571,8 @@ ORDER BY
     qas.state,
     qas.fraction,
     qas.timecreated,
-    qas.userid";
+    qas.userid,
+    qas.savetype";
 
         }
 
@@ -842,6 +848,7 @@ SELECT
     qas.fraction,
     qas.timecreated,
     qas.userid,
+    qas.savetype,
     qasd.name,
     qasd.value
 

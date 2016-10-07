@@ -155,6 +155,9 @@ class question_attempt {
     /** @var question_usage_observer tracks changes to the useage this attempt is part of.*/
     protected $observer;
 
+    /** @var int keeps track of the sequence number of a new standard save during auto-save calls */
+    protected $sequencecheck = -1;
+
     /**#@+
      * Constants used by the intereaction models to indicate whether the current
      * pending step should be kept or discarded.
@@ -1241,6 +1244,16 @@ class question_attempt {
         }
     }
 
+    function replay_requested_and_allowed($stepnumber) {
+        if ($stepnumber > 0 && array_key_exists($stepnumber, $this->steps) &&
+            question_engine::get_behaviour_type($this->get_behaviour()->get_name())->allows_response_replay() &&
+            $this->get_question()->qtype->supports_response_replay()) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     /**
      * Process an autosave.
      * @param array $submitteddata the submitted data the determines the action.
@@ -1248,13 +1261,76 @@ class question_attempt {
      * @param int $userid the user to attribute the action to. (If not given, use the current user.)
      * @return bool whether anything was saved.
      */
-    public function process_autosave($submitteddata, $timestamp = null, $userid = null) {
-        $pendingstep = new question_attempt_pending_step($submitteddata, $timestamp, $userid);
-        if ($this->behaviour->process_autosave($pendingstep) == self::KEEP) {
-            $this->add_autosaved_step($pendingstep);
+    public function process_autosave($submitteddata, $timestamp = null, $userid = null, $conversionenabled = false, $conversioninterval = 0) {
+        $pendingstep = new question_attempt_pending_step($submitteddata, $timestamp, $userid, null, question_attempt_step::SAVE_TYPE_AUTOSAVE);
+        if ($this->behaviour->process_autosave($pendingstep)) {
+            if ($conversionenabled && $this->question->qtype->supports_autosave_conversion() &&
+                $this->standard_save_pending($pendingstep, $conversioninterval)) {
+                //It has been long enough since the last standard save that we need to make another one
+                $pendingstep->set_save_type(question_attempt_step::SAVE_TYPE_CONVERTEDAUTOSAVE);
+                $this->add_step($pendingstep);
+                if ($pendingstep->response_summary_changed()) {
+                    $this->responsesummary = $pendingstep->get_new_response_summary();
+                }
+                if ($pendingstep->variant_number_changed()) {
+                    $this->variant = $pendingstep->get_new_variant_number();
+                }
+                $this->trigger_sequence_check_update();
+            } else {
+                $this->add_autosaved_step($pendingstep);
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Check if the regular full save setting is set and if sufficient
+     * time has lapsed since the last full save.
+     *
+     * @param question_attempt_pending_step $pendingstep the step being processed
+     * @return bool whether there it is overdue to perform a full save
+     */
+    private function standard_save_pending(question_attempt_pending_step $pendingstep, $conversioninterval) {
+        global $CFG;
+        if ($conversioninterval > 0 &&
+            end($this->steps)->get_timecreated() + $conversioninterval <= $pendingstep->get_timecreated()) {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Updates the sequence check number for this question attempt
+     * which will be collected and returned by the auto-save function.
+     * TODO: maybe replace this with an event/observer model?
+     */
+    protected function trigger_sequence_check_update() {
+        $this->sequencecheck = count($this->steps);
+    }
+
+    /**
+     * Indicates if the sequence check used in verifying
+     * that saves are in order has been changed.
+     *
+     * @return bool sequence check number updated
+     */
+    public function sequence_check_changed() {
+        if ($this->sequencecheck >= 0) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Returns an updated sequence check number or -1 if
+     * no change has been made.
+     *
+     * @return int current sequence check number or -1
+     */
+    public function get_sequence_check() {
+        return $this->sequencecheck;
     }
 
     /**
@@ -1476,11 +1552,15 @@ class question_attempt {
                     $qa->observer->notify_step_deleted($nextstep, $qa);
                 }
             } else {
-                $qa->steps[$i] = $nextstep;
-                if ($i == 0) {
-                    $question->apply_attempt_state($qa->steps[0]);
+                if($i > 0 && $nextstep->get_sequence_number() == $qa->steps[$i-1]->get_sequence_number() && $nextstep->get_save_type() == question_attempt_step::SAVE_TYPE_STANDARD) {
+                    $qa->steps[$i-1] = $nextstep;
+                } else {
+                    $qa->steps[$i] = $nextstep;
+                    if ($i == 0) {
+                        $question->apply_attempt_state($qa->steps[0]);
+                    }
+                    $i++;
                 }
-                $i++;
             }
 
             if ($records->valid()) {
