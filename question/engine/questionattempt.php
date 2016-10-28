@@ -162,8 +162,9 @@ class question_attempt {
      * Constants used by the intereaction models to indicate whether the current
      * pending step should be kept or discarded.
      */
-    const KEEP = true;
-    const DISCARD = false;
+    const KEEP_FULL = 2;
+    const KEEP = 1;
+    const DISCARD = 0;
     /**#@-*/
 
     /**
@@ -1253,23 +1254,28 @@ class question_attempt {
      */
     public function process_autosave($submitteddata, $timestamp = null, $userid = null) {
         $pendingstep = new question_attempt_pending_step($submitteddata, $timestamp, $userid);
-        if ($this->behaviour->process_autosave($pendingstep) == self::KEEP) {
-            if ($this->standard_save_pending($pendingstep)) {
-                //It has been long enough since the last standard save that we need to make another one
-                $this->add_step($pendingstep);
-                if ($pendingstep->response_summary_changed()) {
-                    $this->responsesummary = $pendingstep->get_new_response_summary();
+        switch ($this->behaviour->process_autosave($pendingstep)) {
+            case self::KEEP_FULL;
+                if ($this->standard_save_pending($pendingstep)) {
+                    //It has been long enough since the last standard save that we need to make another one
+                    $this->add_step($pendingstep);
+                    if ($pendingstep->response_summary_changed()) {
+                        $this->responsesummary = $pendingstep->get_new_response_summary();
+                    }
+                    if ($pendingstep->variant_number_changed()) {
+                        $this->variant = $pendingstep->get_new_variant_number();
+                    }
+                    $this->trigger_sequence_check_update();
+                } else {
+                    $this->add_autosaved_step($pendingstep);
                 }
-                if ($pendingstep->variant_number_changed()) {
-                    $this->variant = $pendingstep->get_new_variant_number();
-                }
-                $this->trigger_sequence_check_update();
-            } else {
+                return true;
+            case self::KEEP:
                 $this->add_autosaved_step($pendingstep);
-            }
-            return true;
+                return true;
+            default:
+                return false;
         }
-        return false;
     }
 
     /**

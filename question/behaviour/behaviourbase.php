@@ -691,6 +691,16 @@ abstract class question_behaviour_with_multiple_tries extends question_behaviour
     }
 }
 
+trait autosaveconversion {
+    public function process_autosave(question_attempt_pending_step $pendingstep) {
+        if (parent::process_autosave($pendingstep) !== question_attempt::DISCARD) {
+            return question_attempt::KEEP_FULL;
+        } else {
+            return question_attempt::DISCARD;
+        }
+    }
+}
+
 /**
  * This helper class contains the constants and methods required for
  * manipulating scores for certainty based marking.

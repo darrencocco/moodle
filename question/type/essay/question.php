@@ -53,7 +53,11 @@ class qtype_essay_question extends question_with_responses {
     public $responsetemplateformat;
 
     public function make_behaviour(question_attempt $qa, $preferredbehaviour) {
-        return question_engine::make_behaviour('manualgraded', $qa, $preferredbehaviour);
+        if (array_key_exists('autosaveconversion', class_uses($preferredbehaviour))) {
+            return question_engine::make_behaviour('manualgradedfrequentsaves', $qa, $preferredbehaviour);
+        } else {
+            return question_engine::make_behaviour('manualgraded', $qa, $preferredbehaviour);
+        }
     }
 
     /**
