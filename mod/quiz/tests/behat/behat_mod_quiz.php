@@ -553,4 +553,62 @@ class behat_mod_quiz extends behat_question_base {
                 "contains(., {$questionnumberliteral}) and contains(preceding-sibling::h3[1], {$headingliteral})]";
         $this->find('xpath', $xpath);
     }
+
+    /**
+     * Checks the answer of a question matches a value, does not support all question types.
+     *
+     * @Then /^the answer of "(?P<question_type>(?:[^"]|\\")*)" question "(?P<questionnumber>\d+)" matches "(?P<answer>(?:[^"]|\\")*)"$/
+     * @param string $questiontype the type of question you are looking for.
+     * @param int $questionnumber the question number of the short answer relative to the overall quiz
+     * @param string $answer what kind of text should be in the short answer
+     * @throws coding_exception
+     */
+    public function answer_of_question_matches ($questiontype, $questionnumber, $answer) {
+        switch($questiontype) {
+            case "essay" :
+                $xpath = "//div[@id='q$questionnumber']//textarea[contains(@name,'_answer')]";
+                break;
+            case "shortanswer" :
+                $xpath = "//div[@id='q$questionnumber']//*[@class='answer']//input";
+                break;
+            default:
+                throw new coding_exception("Question type: $questiontype not implemented");
+        }
+        $this->execute('behat_forms::the_field_with_xpath_matches_value', array($xpath, $answer));
+    }
+
+    /**
+     * Sets the answer of a question, does not support all question types.
+     *
+     * @When /^I set the answer of "(?P<question_type>(?:[^"]|\\")*)" question "(?P<question_number>\d+)" to "(?P<answer>(?:[^"]|\\")*)"$/
+     * @param string $questiontype the type of question you are looking for.
+     * @param int $questionnumber the question number of the short answer relative to the overall quiz
+     * @param string $answer what text to enter into the short answer question
+     * @throws coding_exception
+     */
+    public function i_set_the_answer_of_question ($questiontype, $questionnumber, $answer) {
+        switch($questiontype) {
+            case "essay" :
+                $xpath = "//div[@id='q$questionnumber']//textarea[contains(@name,'_answer')]";
+                break;
+            case "shortanswer" :
+                $xpath = "//div[@id='q$questionnumber']//*[@class='answer']//input";
+                break;
+            default:
+                throw new coding_exception("Question type: $questiontype not implemented");
+        }
+        $this->execute('behat_forms::i_set_the_field_with_xpath_to', array($xpath, $answer));
+    }
+
+    /**
+     * Checks the sequence check number of a question.
+     *
+     * @Then /^the sequence check of question "(?P<questionnumber>\d+)" matches "(?P<answer>(?:[^"]|\\")*)"$/
+     * @param int $questionnumber the question number of the question
+     * @param int $sequencenumber the save step seqeunce number
+     */
+    public function question_sequencecheck_matches ($questionnumber, $sequencenumber) {
+        $xpath = "//div[@id='q$questionnumber']//input[contains(@name, 'sequencecheck')]";
+        $this->execute('behat_forms::the_field_with_xpath_matches_value', array($xpath, $sequencenumber));
+    }
 }

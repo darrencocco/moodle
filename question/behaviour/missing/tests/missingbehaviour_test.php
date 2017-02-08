@@ -82,13 +82,13 @@ class qbehaviour_missing_test extends advanced_testcase {
                                    'behaviour', 'questionid', 'variant', 'maxmark', 'minfraction', 'maxfraction', 'flagged',
                                             'questionsummary', 'rightanswer', 'responsesummary',
                     'timemodified', 'attemptstepid', 'sequencenumber', 'state', 'fraction',
-                                                       'timecreated', 'userid', 'name', 'value'),
+                                                       'timecreated', 'userid', 'name', 'value', 'savetype'),
             array(1, 123, 1, 1, 'strangeunknown', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '',
-                    1256233790, 1, 0, 'todo',     null, 1256233700, 1,   '_order', '1,2,3'),
+                    1256233790, 1, 0, 'todo', null, 1256233700, 1,   '_order', '1,2,3', 1),
             array(1, 123, 1, 1, 'strangeunknown', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '',
-                    1256233790, 2, 1, 'complete', 0.50, 1256233705, 1,  '-submit',  '1'),
+                    1256233790, 2, 1, 'complete', 0.50, 1256233705, 1,  '-submit',  '1', 1),
             array(1, 123, 1, 1, 'strangeunknown', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '',
-                    1256233790, 2, 1, 'complete', 0.50, 1256233705, 1,  'choice0',  '1'),
+                    1256233790, 2, 1, 'complete', 0.50, 1256233705, 1,  'choice0',  '1', 1),
         ));
 
         $question = test_question_maker::make_question('truefalse', 'true');

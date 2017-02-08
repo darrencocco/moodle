@@ -750,8 +750,35 @@ abstract class qbehaviour_walkthrough_test_base extends question_testcase {
         $this->quba->process_all_actions(time(), $this->response_data_to_post($data));
     }
 
+    /**
+     * Process a submission with a set time, useful for time dependent question behaviours.
+     *
+     * @param integer $timestamp UNIX timestamp when the save occurs
+     * @param array $data data for question state
+     */
+    protected function process_submission_with_time ($timestamp, $data) {
+        // Backwards compatibility.
+        reset($data);
+        if (count($data) == 1 && key($data) === '-finish') {
+            $this->finish();
+        }
+
+        $this->quba->process_all_actions($timestamp, $this->response_data_to_post($data));
+    }
+
     protected function process_autosave($data) {
         $this->quba->process_all_autosaves(null, $this->response_data_to_post($data));
+    }
+
+    /**
+     * Perform an auto-save with save conversion enabled at the specified interval.
+     *
+     * @param integer $timestamp UNIX timestamp when the auto-save occurs
+     * @param integer $conversioninterval number of seconds allowed to pass until next full save
+     * @param array $data data for question state
+     */
+    protected function process_autosave_conversion($timestamp, $conversioninterval, $data) {
+        $this->quba->process_all_autosaves($timestamp, $this->response_data_to_post($data), $conversioninterval);
     }
 
     protected function finish() {

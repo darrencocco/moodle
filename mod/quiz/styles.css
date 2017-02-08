@@ -44,7 +44,8 @@ body.jsenabled .questionflagcheckbox {
 }
 
 #page-mod-quiz-attempt #connection-ok,
-#page-mod-quiz-attempt #connection-error {
+#page-mod-quiz-attempt #connection-error,
+#page-mod-quiz-attempt #autosave-warning {
     position: fixed;
     top: 0;
     width: 80%;
@@ -56,7 +57,8 @@ body.jsenabled .questionflagcheckbox {
     z-index: 10000;
 }
 
-#page-mod-quiz-attempt #connection-error {
+#page-mod-quiz-attempt #connection-error,
+#page-mod-quiz-attempt #autosave-warning {
     background-color: #fcc;
 }
 

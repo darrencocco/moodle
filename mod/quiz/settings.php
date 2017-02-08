@@ -217,6 +217,11 @@ if ($ADMIN->fulltree) {
     // Autosave frequency.
     $quizsettings->add(new admin_setting_configduration('quiz/autosaveperiod',
             get_string('autosaveperiod', 'quiz'), get_string('autosaveperiod_desc', 'quiz'), 60, 1));
+
+    // Autosave conversion max interval.
+    $quizsettings->add(new admin_setting_configduration('quiz/autosaveconversioninterval',
+        get_string('autosaveconversioninterval', 'quiz'), get_string('autosaveconversioninterval_desc', 'quiz'),
+        180, 60));
 }
 
 // Now, depending on whether any reports have their own settings page, add
