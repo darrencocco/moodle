@@ -44,18 +44,25 @@ class question_attempt_db_test extends data_loading_method_test_base {
     public function test_load() {
         $records = new question_test_recordset(array(
             array('questionattemptid', 'contextid', 'questionusageid', 'slot',
-                                   'behaviour', 'questionid', 'variant', 'maxmark', 'minfraction', 'maxfraction', 'flagged',
-                                                                                       'questionsummary', 'rightanswer', 'responsesummary', 'timemodified',
-                                                                                                               'attemptstepid', 'sequencenumber', 'state', 'fraction',
-                                                                                                                                                'timecreated', 'userid', 'name', 'value'),
-            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790, 1, 0, 'todo',              null, 1256233700, 1,       null, null),
-            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790, 2, 1, 'complete',          null, 1256233705, 1,   'answer',  '1'),
-            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 1, '', '', '', 1256233790, 3, 2, 'complete',          null, 1256233710, 1,   'answer',  '0'),
-            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790, 4, 3, 'complete',          null, 1256233715, 1,   'answer',  '1'),
-            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790, 5, 4, 'gradedright',  1.0000000, 1256233720, 1,  '-finish',  '1'),
-            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790, 6, 5, 'mangrpartial', 0.5000000, 1256233790, 1, '-comment', 'Not good enough!'),
-            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790, 6, 5, 'mangrpartial', 0.5000000, 1256233790, 1,    '-mark',  '1'),
-            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790, 6, 5, 'mangrpartial', 0.5000000, 1256233790, 1, '-maxmark',  '2'),
+                'behaviour', 'questionid', 'variant', 'maxmark', 'minfraction', 'maxfraction', 'flagged',
+                'questionsummary', 'rightanswer', 'responsesummary', 'timemodified', 'attemptstepid',
+                'sequencenumber', 'state', 'fraction', 'timecreated', 'userid', 'name', 'value', 'savetype'),
+            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790,
+                1, 0, 'todo',              null, 1256233700, 1,       null, null, 1),
+            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790,
+                2, 1, 'complete',          null, 1256233705, 1,   'answer',  '1', 1),
+            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 1, '', '', '', 1256233790,
+                3, 2, 'complete',          null, 1256233710, 1,   'answer',  '0', 1),
+            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790,
+                4, 3, 'complete',          null, 1256233715, 1,   'answer',  '1', 1),
+            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790,
+                5, 4, 'gradedright',  1.0000000, 1256233720, 1,  '-finish',  '1', 1),
+            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790,
+                6, 5, 'mangrpartial', 0.5000000, 1256233790, 1, '-comment', 'Not good enough!', 1),
+            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790,
+                6, 5, 'mangrpartial', 0.5000000, 1256233790, 1,    '-mark',  '1', 1),
+            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790,
+                6, 5, 'mangrpartial', 0.5000000, 1256233790, 1, '-maxmark',  '2', 1),
         ));
 
         $question = test_question_maker::make_question('truefalse', 'true');
@@ -116,12 +123,12 @@ class question_attempt_db_test extends data_loading_method_test_base {
 
     public function test_load_missing_question() {
         $records = new question_test_recordset(array(
-            array('questionattemptid', 'contextid', 'questionusageid', 'slot',
-                                   'behaviour', 'questionid', 'variant', 'maxmark', 'minfraction', 'maxfraction', 'flagged',
-                                                                                       'questionsummary', 'rightanswer', 'responsesummary', 'timemodified',
-                                                                                                               'attemptstepid', 'sequencenumber', 'state', 'fraction',
-                                                                                                                                                'timecreated', 'userid', 'name', 'value'),
-            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790, 1, 0, 'todo',              null, 1256233700, 1,       null, null),
+            array('questionattemptid', 'contextid', 'questionusageid', 'slot', 'behaviour', 'questionid', 'variant',
+                'maxmark', 'minfraction', 'maxfraction', 'flagged', 'questionsummary', 'rightanswer',
+                'responsesummary', 'timemodified', 'attemptstepid', 'sequencenumber', 'state', 'fraction',
+                'timecreated', 'userid', 'name', 'value', 'savetype'),
+            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790,
+                1, 0, 'todo', null, 1256233700, 1, null, null, 1),
         ));
 
         question_bank::start_unit_test();
@@ -143,15 +150,18 @@ class question_attempt_db_test extends data_loading_method_test_base {
 
     public function test_load_with_autosaved_data() {
         $records = new question_test_recordset(array(
-            array('questionattemptid', 'contextid', 'questionusageid', 'slot',
-                                   'behaviour', 'questionid', 'variant', 'maxmark', 'minfraction', 'maxfraction', 'flagged',
-                                                                                       'questionsummary', 'rightanswer', 'responsesummary', 'timemodified',
-                                                                                                             'attemptstepid', 'sequencenumber', 'state', 'fraction',
-                                                                                                                                                'timecreated', 'userid', 'name', 'value'),
-            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790, 4, -3, 'complete',          null, 1256233715, 1,   'answer',  '1'),
-            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790, 1,  0, 'todo',              null, 1256233700, 1,       null, null),
-            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790, 2,  1, 'complete',          null, 1256233705, 1,   'answer',  '1'),
-            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 1, '', '', '', 1256233790, 3,  2, 'complete',          null, 1256233710, 1,   'answer',  '0'),
+            array('questionattemptid', 'contextid', 'questionusageid', 'slot', 'behaviour', 'questionid', 'variant',
+                'maxmark', 'minfraction', 'maxfraction', 'flagged', 'questionsummary', 'rightanswer', 'responsesummary',
+                'timemodified', 'attemptstepid', 'sequencenumber', 'state', 'fraction', 'timecreated', 'userid', 'name',
+                'value', 'savetype'),
+            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790,
+                4, -3, 'complete',          null, 1256233715, 1,   'answer',  '1', 2),
+            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790,
+                1,  0, 'todo',              null, 1256233700, 1,       null, null, 1),
+            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790,
+                2,  1, 'complete',          null, 1256233705, 1,   'answer',  '1', 1),
+            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 1, '', '', '', 1256233790,
+                3,  2, 'complete',          null, 1256233710, 1,   'answer',  '0', 1),
         ));
 
         $question = test_question_maker::make_question('truefalse', 'true');
@@ -202,16 +212,20 @@ class question_attempt_db_test extends data_loading_method_test_base {
         // has already been superceded by real data, so it should be ignored.
         // There is also a second lot of redundant data to delete.
         $records = new question_test_recordset(array(
-            array('questionattemptid', 'contextid', 'questionusageid', 'slot',
-                                   'behaviour', 'questionid', 'variant', 'maxmark', 'minfraction', 'maxfraction', 'flagged',
-                                                                                       'questionsummary', 'rightanswer', 'responsesummary', 'timemodified',
-                                                                                                             'attemptstepid', 'sequencenumber', 'state', 'fraction',
-                                                                                                                                                'timecreated', 'userid', 'name', 'value'),
-            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790, 5, -2, 'complete',          null, 1256233715, 1,   'answer',  '0'),
-            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790, 4, -1, 'complete',          null, 1256233715, 1,   'answer',  '0'),
-            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790, 1,  0, 'todo',              null, 1256233700, 1,       null, null),
-            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790, 2,  1, 'complete',          null, 1256233705, 1,   'answer',  '1'),
-            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 1, '', '', '', 1256233790, 3,  2, 'complete',          null, 1256233710, 1,   'answer',  '0'),
+            array('questionattemptid', 'contextid', 'questionusageid', 'slot', 'behaviour', 'questionid', 'variant',
+                'maxmark', 'minfraction', 'maxfraction', 'flagged', 'questionsummary', 'rightanswer', 'responsesummary',
+                'timemodified', 'attemptstepid', 'sequencenumber', 'state', 'fraction', 'timecreated', 'userid', 'name',
+                'value', 'savetype'),
+            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790,
+                5, -2, 'complete',          null, 1256233715, 1,   'answer',  '0', 2),
+            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790,
+                4, -1, 'complete',          null, 1256233715, 1,   'answer',  '0', 2),
+            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790,
+                1,  0, 'todo',              null, 1256233700, 1,       null, null, 1),
+            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 0, '', '', '', 1256233790,
+                2,  1, 'complete',          null, 1256233705, 1,   'answer',  '1', 1),
+            array(1, 123, 1, 1, 'deferredfeedback', -1, 1, 2.0000000, 0.0000000, 1.0000000, 1, '', '', '', 1256233790,
+                3,  2, 'complete',          null, 1256233710, 1,   'answer',  '0', 1),
         ));
 
         $question = test_question_maker::make_question('truefalse', 'true');

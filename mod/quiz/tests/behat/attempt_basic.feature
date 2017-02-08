@@ -141,3 +141,35 @@ Feature: Attemp a quiz where some questions require that the previous question h
     And I follow "Previous page"
     And I should see "Text of the first question"
     And I should not see "Text of the second question"
+
+
+  @javascript
+  Scenario: Attempt a quiz and trigger auto-save with conversion
+    Given the following "questions" exist:
+      | questioncategory | qtype       | name              | questiontext    |
+      | Test questions   | shortanswer | shortanswer-001   | First question  |
+      | Test questions   | shortanswer | shortanswer-002   | Second question |
+    And quiz "Quiz 1" contains the following questions:
+      | question        | page | maxmark |
+      | shortanswer-001 | 1    |         |
+      | shortanswer-002 | 1    | 3.0     |
+    And the following config values are set as admin:
+      | autosaveperiod             | 5  | quiz |
+      | autosaveconversioninterval | 15 | quiz |
+    When I log in as "student"
+    And I follow "Course 1"
+    And I follow "Quiz 1"
+    And I press "Attempt quiz now"
+    And I set the answer of "shortanswer" question "1" to "field one answer one"
+    And I set the answer of "shortanswer" question "2" to "field two answer one"
+    And I wait "10" seconds
+    And I reload the page
+    Then the answer of "shortanswer" question "1" matches "field one answer one"
+    And the answer of "shortanswer" question "2" matches "field two answer one"
+    And  the sequence check of question "1" matches "1"
+    And  the sequence check of question "2" matches "1"
+    When I wait "10" seconds
+    And I set the answer of "shortanswer" question "2" to "field two answer two"
+    And I wait "10" seconds
+    Then the sequence check of question "1" matches "1"
+    And  the sequence check of question "2" matches "2"

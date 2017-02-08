@@ -1072,7 +1072,7 @@ class mod_quiz_external extends external_api {
     /**
      * Describes the parameters for save_attempt.
      *
-     * @return external_external_function_parameters
+     * @return external_function_parameters
      * @since Moodle 3.1
      */
     public static function save_attempt_parameters() {
@@ -1130,11 +1130,18 @@ class mod_quiz_external extends external_api {
             $_POST[$element['name']] = $element['value'];
         }
         $timenow = time();
-        $attemptobj->process_auto_save($timenow);
-        $transaction->allow_commit();
-
         $result = array();
-        $result['status'] = true;
+        try {
+            $attemptobj->process_auto_save($timenow);
+            $transaction->allow_commit();
+            $result['status'] = quiz_attempt::AUTOSAVE_SUCCESS_CODE;
+            $result['statusmessage'] = quiz_attempt::AUTOSAVE_SUCCESS;
+            $result['newsequences'] = $attemptobj->get_updated_sequence_checks();
+        } catch (question_out_of_sequence_exception $e) {
+            $result['status'] = quiz_attempt::AUTOSAVE_WRONG_SEQUENCE_CODE;
+            $result['statusmessage'] = quiz_attempt::AUTOSAVE_WRONG_SEQUENCE;
+        }
+
         $result['warnings'] = $warnings;
         return $result;
     }
@@ -1148,7 +1155,16 @@ class mod_quiz_external extends external_api {
     public static function save_attempt_returns() {
         return new external_single_structure(
             array(
-                'status' => new external_value(PARAM_BOOL, 'status: true if success'),
+                'status' => new external_value(PARAM_INT, 'status: 0 if success'),
+                'statusmessage' => new external_value(PARAM_ALPHA, 'status message'),
+                'newsequences' => new external_multiple_structure(
+                    new external_single_structure (
+                        array(
+                            'name' => new external_value(PARAM_ALPHANUMEXT, 'Sequence control field name'),
+                            'value' => new external_value(PARAM_INT, 'New sequence number'),
+                        )
+                    )
+                ),
                 'warnings' => new external_warnings(),
             )
         );

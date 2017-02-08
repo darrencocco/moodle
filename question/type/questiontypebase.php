@@ -1418,6 +1418,23 @@ class question_type {
                 return base64_decode($file->content);
         }
     }
+
+    /**
+     * Indicates if the question supports converting
+     * auto-saves to standard saves.
+     *
+     * This could create some risks in situations where
+     * the save process for auto-save and standard save differs
+     * significantly for a question. We do not expect this to be
+     * common.
+     *
+     * Default is true
+     *
+     * @return bool
+     */
+    public function supports_autosave_conversion() {
+        return true;
+    }
 }
 
 

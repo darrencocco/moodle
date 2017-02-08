@@ -538,6 +538,26 @@ class question_usage_by_activity {
     }
 
     /**
+     * Returns the field names and values of sequence checks
+     * for any question attempt autosaves that were
+     * completed as full saves.
+     *
+     * @return array pairs of field name and value
+     */
+    public function get_updated_sequence_checks() {
+        $newsequencechecks = array();
+        foreach ($this->questionattempts as $questionattempt) {
+            if ($questionattempt->sequence_check_changed()) {
+                $newsequencechecks[] = (object) [
+                    'name' => $questionattempt->get_control_field_name('sequencecheck'),
+                    'value' => $questionattempt->get_sequence_check()
+                ];
+            }
+        }
+        return $newsequencechecks;
+    }
+
+    /**
      * Start the attempt at a question that has been added to this usage.
      * @param int $slot the number used to identify this question within this usage.
      * @param int $variant which variant of the question to use. Must be between
@@ -623,14 +643,16 @@ class question_usage_by_activity {
      * @param int $timestamp optional, use this timestamp as 'now'.
      * @param array $postdata optional, only intended for testing. Use this data
      * instead of the data from $_POST.
+     * @param int $conversioninterval optional, how many seconds allowed to lapse before an
+     * auto-save is converted
      */
-    public function process_all_autosaves($timestamp = null, $postdata = null) {
+    public function process_all_autosaves($timestamp = null, $postdata = null, $conversioninterval = 0) {
         foreach ($this->get_slots_in_request($postdata) as $slot) {
             if (!$this->is_autosave_required($slot, $postdata)) {
                 continue;
             }
             $submitteddata = $this->extract_responses($slot, $postdata);
-            $this->process_autosave($slot, $submitteddata, $timestamp);
+            $this->process_autosave($slot, $submitteddata, $timestamp, $conversioninterval);
         }
         $this->update_question_flags($postdata);
     }
@@ -732,11 +754,14 @@ class question_usage_by_activity {
     /**
      * Process an autosave action on a specific question.
      * @param int $slot the number used to identify this question within this usage.
-     * @param $submitteddata the submitted data that constitutes the action.
+     * @param array $submitteddata the submitted data that constitutes the action.
+     * @param int $timestamp optional, the time the action occurred.
+     * @param int $conversioninterval optional, how many seconds allowed to lapse before an
+     * auto-save is converted
      */
-    public function process_autosave($slot, $submitteddata, $timestamp = null) {
+    public function process_autosave($slot, $submitteddata, $timestamp = null, $conversioninterval = 0) {
         $qa = $this->get_question_attempt($slot);
-        if ($qa->process_autosave($submitteddata, $timestamp)) {
+        if ($qa->process_autosave($submitteddata, $timestamp, null, $conversioninterval)) {
             $this->observer->notify_attempt_modified($qa);
         }
     }
@@ -747,17 +772,20 @@ class question_usage_by_activity {
      * false. If the check variable is present and correct, returns true. If the
      * variable is present and wrong, throws an exception.
      * @param int $slot the number used to identify this question within this usage.
-     * @param array $submitteddata the submitted data that constitutes the action.
+     * @param array $postdata the submitted data that constitutes the action.
+     * @param int $savetype What type of save is this intended to be.
      * @return bool true if the check variable is present and correct. False if it
      * is missing. (Throws an exception if the check fails.)
+     * @throws question_out_of_sequence_exception
      */
-    public function validate_sequence_number($slot, $postdata = null) {
+    public function validate_sequence_number($slot, $postdata = null, $savetype = question_attempt_step::SAVE_TYPE_STANDARD) {
         $qa = $this->get_question_attempt($slot);
         $sequencecheck = $qa->get_submitted_var(
                 $qa->get_control_field_name('sequencecheck'), PARAM_INT, $postdata);
         if (is_null($sequencecheck)) {
             return false;
-        } else if ($sequencecheck != $qa->get_sequence_check_count()) {
+        } else if ($sequencecheck != $qa->get_sequence_check_count() &&
+            !$this->is_permitted_concurrency_event($qa, $sequencecheck, $savetype)) {
             throw new question_out_of_sequence_exception($this->id, $slot, $postdata);
         } else {
             return true;
@@ -765,10 +793,34 @@ class question_usage_by_activity {
     }
 
     /**
+     * Checks if this is a case where an out of sequence save may be accepted due to a possible quirk.
+     *
+     * This is stupidly complicated but necessary to handle rare concurrency cases
+     * Essentially this checks to see if the sequence of the submitted response is exactly one behind
+     * AND if the previous save was a auto-save that was converted to a normal save AND the new save
+     * is a standard save then it should be retained. This can apparently occur when an auto-save is
+     * started and the user clicks the next button in a very small time frame.
+     *
+     * @param question_attempt $qa
+     * @param integer $sequencecheck
+     * @param integer $newsavetype
+     * @return bool
+     */
+    public function is_permitted_concurrency_event(question_attempt $qa, $sequencecheck, $newsavetype) {
+        if ($qa->get_last_step()->get_save_type() === question_attempt_step::SAVE_TYPE_CONVERTEDAUTOSAVE &&
+            $newsavetype === question_attempt_step::SAVE_TYPE_STANDARD &&
+            $qa->get_sequence_check_count() - $sequencecheck === 1) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Check, based on the sequence number, whether this auto-save is still required.
      * @param int $slot the number used to identify this question within this usage.
-     * @param array $submitteddata the submitted data that constitutes the action.
+     * @param array $postdata the submitted data that constitutes the action.
      * @return bool true if the check variable is present and correct, otherwise false.
+     * @throws question_out_of_sequence_exception
      */
     public function is_autosave_required($slot, $postdata = null) {
         $qa = $this->get_question_attempt($slot);
@@ -777,7 +829,7 @@ class question_usage_by_activity {
         if (is_null($sequencecheck)) {
             return false;
         } else if ($sequencecheck != $qa->get_sequence_check_count()) {
-            return false;
+            throw new question_out_of_sequence_exception($this->id, $slot, $postdata);
         } else {
             return true;
         }

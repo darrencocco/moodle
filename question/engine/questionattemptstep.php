@@ -64,6 +64,15 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class question_attempt_step {
+
+    /** @var int question step not saved - this should never be seen in the DB*/
+    const SAVE_TYPE_NONE = 0;
+    /** @var int standard question step save */
+    const SAVE_TYPE_STANDARD = 1;
+    /** @var int standard question step auto-saved */
+    const SAVE_TYPE_AUTOSAVE = 2;
+    /** @var int auto-save step converted to a standard save */
+    const SAVE_TYPE_CONVERTEDAUTOSAVE = 3;
     /**
      * @var integer if this attempts is stored in the question_attempts table,
      * the id of that row.
@@ -94,18 +103,27 @@ class question_attempt_step {
     /** @var array name => array of {@link stored_file}s. Caches the contents of file areas. */
     private $files = array();
 
+    /** @var integer the method of generating this step */
+    private $savetype;
+
+    /** @var integer internal sequence number of step */
+    private $sequencenumber;
+
     /**
      * You should not need to call this constructor in your own code. Steps are
      * normally created by {@link question_attempt} methods like
      * {@link question_attempt::process_action()}.
      * @param array $data the submitted data that defines this step.
-     * @param int $timestamp the time to record for the action. (If not given, use now.)
+     * @param int $timecreated the time to record for the action. (If not given, use now.)
      * @param int $userid the user to attribute the aciton to. (If not given, use the current user.)
      * @param int $existingstepid if this step is going to replace an existing step
      *      (for example, during a regrade) this is the id of the previous step we are replacing.
+     * @param int $savetype the type of save
+     * @param int $sequencenumber the sequence number if known
+     * @throws coding_exception
      */
-    public function __construct($data = array(), $timecreated = null, $userid = null,
-            $existingstepid = null) {
+    public function __construct($data = array(), $timecreated = null, $userid = null, $existingstepid = null,
+                                $savetype = self::SAVE_TYPE_STANDARD, $sequencenumber = null) {
         global $USER;
 
         if (!is_array($data)) {
@@ -126,6 +144,15 @@ class question_attempt_step {
 
         if (!is_null($existingstepid)) {
             $this->id = $existingstepid;
+        }
+
+        if (!(is_int($savetype) || ctype_digit($savetype))) {
+            throw new coding_exception('$savetype must be an integer when constructing a question_attempt_step');
+        }
+        $this->savetype = (int)$savetype;
+
+        if (!is_null($sequencenumber)) {
+            $this->sequencenumber = $sequencenumber;
         }
     }
 
@@ -157,6 +184,13 @@ class question_attempt_step {
      */
     public function get_fraction() {
         return $this->fraction;
+    }
+
+    /**
+     * @return int|null the DB sequence number of the step.
+     */
+    public function get_sequence_number() {
+        return $this->sequencenumber;
     }
 
     /**
@@ -415,10 +449,11 @@ class question_attempt_step {
     /**
      * Create a question_attempt_step from records loaded from the database.
      * @param Iterator $records Raw records loaded from the database.
-     * @param int $stepid The id of the records to extract.
+     * @param int $attemptstepid The id of the records to extract.
      * @param string $qtype The question type of which this is an attempt.
      *      If not given, each record must include a qtype field.
      * @return question_attempt_step The newly constructed question_attempt_step.
+     * @throws coding_exception
      */
     public static function load_from_records($records, $attemptstepid, $qtype = null) {
         $currentrec = $records->current();
@@ -446,7 +481,8 @@ class question_attempt_step {
             }
         }
 
-        $step = new question_attempt_step_read_only($data, $record->timecreated, $record->userid);
+        $step = new question_attempt_step_read_only($data, $record->timecreated,
+            $record->userid, null, $record->savetype, $record->sequencenumber);
         $step->state = question_state::get($record->state);
         $step->id = $record->attemptstepid;
         if (!is_null($record->fraction)) {
@@ -469,6 +505,24 @@ class question_attempt_step {
         }
 
         return $step;
+    }
+
+    /**
+     * The type of save this step will be/was, should match SAVE_TYPE_* consts.
+     *
+     * @return int type
+     */
+    public function get_save_type() {
+        return $this->savetype;
+    }
+
+    /**
+     * Sets the save type to one defined by the SAVE_TYPE_* consts.
+     *
+     * @param integer $savetype const from question_attempt_step::SAVE_TYPE_*
+     */
+    public function set_save_type($savetype) {
+        $this->savetype = $savetype;
     }
 }
 

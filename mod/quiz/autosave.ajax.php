@@ -57,7 +57,15 @@ if ($attemptobj->is_finished()) {
     throw new moodle_quiz_exception($attemptobj->get_quizobj(),
             'attemptalreadyclosed', null, $attemptobj->review_url());
 }
-
-$attemptobj->process_auto_save($timenow);
-$transaction->allow_commit();
-echo 'OK';
+$return = new stdClass();
+try {
+    $attemptobj->process_auto_save($timenow);
+    $transaction->allow_commit();
+    $return->status = quiz_attempt::AUTOSAVE_SUCCESS_CODE;
+    $return->statusmessage = quiz_attempt::AUTOSAVE_SUCCESS;
+    $return->newsequences = $attemptobj->get_updated_sequence_checks();
+} catch (question_out_of_sequence_exception $e) {
+    $return->status = quiz_attempt::AUTOSAVE_WRONG_SEQUENCE_CODE;
+    $return->statusmessage = quiz_attempt::AUTOSAVE_WRONG_SEQUENCE;
+}
+echo json_encode($return);

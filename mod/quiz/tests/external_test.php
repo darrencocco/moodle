@@ -988,7 +988,7 @@ class mod_quiz_external_testcase extends externallib_advanced_testcase {
 
         $result = mod_quiz_external::save_attempt($attempt->id, $data);
         $result = external_api::clean_returnvalue(mod_quiz_external::save_attempt_returns(), $result);
-        $this->assertTrue($result['status']);
+        $this->assertEquals(0, $result['status']);
 
         // Now, get the summary.
         $result = mod_quiz_external::get_attempt_summary($attempt->id);
@@ -1015,7 +1015,7 @@ class mod_quiz_external_testcase extends externallib_advanced_testcase {
 
         $result = mod_quiz_external::save_attempt($attempt->id, $data);
         $result = external_api::clean_returnvalue(mod_quiz_external::save_attempt_returns(), $result);
-        $this->assertTrue($result['status']);
+        $this->assertEquals(0, $result['status']);
 
         // Now, get the summary.
         $result = mod_quiz_external::get_attempt_summary($attempt->id);
