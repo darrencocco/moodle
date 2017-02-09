@@ -1552,6 +1552,10 @@ class quiz_attempt {
             }
         }
 
+        if ($this->can_replay_responses()) {
+            $displayoptions->replayresponse = 1;
+        }
+
         if ($seq === null) {
             $output = $this->quba->render_question($slot, $displayoptions, $number);
         } else {
@@ -1563,6 +1567,16 @@ class quiz_attempt {
         }
 
         return $output;
+    }
+
+    /**
+     * Is response replay enabled.
+     *
+     * @return bool
+     */
+    public function can_replay_responses() {
+        return $this->get_quiz()->responsereplayenabled === '1' &&
+            get_config('quiz', 'responsereplayavailable') === '1';
     }
 
     /**
@@ -1834,7 +1848,7 @@ class quiz_attempt {
             $simulatedpostdata = null;
         }
 
-        $this->quba->process_all_actions($timestamp, $simulatedpostdata);
+        $this->quba->process_all_actions($timestamp, $simulatedpostdata, $this->can_replay_responses());
         question_engine::save_questions_usage_by_activity($this->quba);
 
         $this->attempt->timemodified = $timestamp;

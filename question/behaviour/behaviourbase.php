@@ -47,6 +47,9 @@ abstract class question_behaviour {
     /** @var question_definition shortcut to $qa->get_question(). */
     protected $question;
 
+    /** @var string the preferred behaviour of the quiz */
+    protected $preferredbehaviour;
+
     /**
      * Normally you should not call this constuctor directly. The appropriate
      * behaviour object is created automatically as part of
@@ -59,6 +62,7 @@ abstract class question_behaviour {
     public function __construct(question_attempt $qa, $preferredbehaviour) {
         $this->qa = $qa;
         $this->question = $qa->get_question();
+        $this->preferredbehaviour = $preferredbehaviour;
         if (!$this->is_compatible_question($this->question)) {
             throw new coding_exception('This behaviour (' . $this->get_name() .
                     ') cannot work with this question (' . get_class($this->question) . ')');
@@ -564,6 +568,16 @@ abstract class question_behaviour {
     public function step_has_a_submitted_response($step) {
         return false;
     }
+
+    /**
+     * Does this question behaviour allow responses to be replayed to one of their previous
+     * sequence steps.
+     *
+     * @return bool
+     */
+    public function allows_response_replay() {
+        return false;
+    }
 }
 
 
@@ -682,6 +696,21 @@ abstract class question_behaviour_with_save extends question_behaviour {
                     $this->question->summarise_response($data));
         }
         return get_string('attemptfinished', 'question');
+    }
+
+    /**
+     * Does this question behaviour allow responses to be replayed to one of their previous
+     * sequence steps.
+     *
+     * @return bool
+     */
+    public function allows_response_replay() {
+        if ($this->get_name() !== $this->preferredbehaviour) {
+            return question_engine::get_behaviour_type($this->get_name())->allows_response_replay() &&
+                question_engine::get_behaviour_type($this->preferredbehaviour)->allows_response_replay();
+        } else {
+            return question_engine::get_behaviour_type($this->get_name())->allows_response_replay();
+        }
     }
 }
 

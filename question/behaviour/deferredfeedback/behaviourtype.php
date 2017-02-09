@@ -41,4 +41,14 @@ class qbehaviour_deferredfeedback_type extends question_behaviour_type {
         return array('correctness', 'marks', 'specificfeedback', 'generalfeedback',
                 'rightanswer');
     }
+
+    /**
+     * This question behaviour allow responses to be replayed to one of their previous
+     * sequence steps.
+     *
+     * @return bool
+     */
+    public function allows_response_replay() {
+        return true;
+    }
 }

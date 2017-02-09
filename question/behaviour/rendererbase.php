@@ -230,6 +230,37 @@ abstract class qbehaviour_renderer extends plugin_renderer_base {
     }
 
     /**
+     * Generates a button for a question_attempt to trigger the replay process.
+     *
+     * @param question_attempt $qa The question attempt to attach the button to
+     * @param question_display_options $options Check to see if it is read-only
+     * @return string The HTML fragment to render the button
+     */
+    protected function replay_button(question_attempt $qa, question_display_options $options) {
+        if (!$qa->get_state()->is_active() || !property_exists($options, 'replayresponse') ||
+            $options->replayresponse != 1 || !$qa->get_behaviour()->allows_response_replay() ||
+            !$qa->get_question()->qtype->supports_response_replay()) {
+            return '';
+        }
+        $attributes = array(
+            'type' => 'button',
+            'id' => $qa->get_behaviour_field_name('replay'),
+            'name' => $qa->get_behaviour_field_name('replay'),
+            'value' => get_string('replay', 'question'),
+            'class' => 'btn',
+        );
+        if ($options->readonly) {
+            $attributes['disabled'] = 'disabled';
+        }
+        $output = html_writer::empty_tag('input', $attributes);
+        if (!$options->readonly) {
+            $this->page->requires->js_call_amd('core_question/replay', 'init', array($attributes['id'],
+                $qa->get_database_id(), $qa->get_behaviour_field_name('replaysequence')));
+        }
+        return $output;
+    }
+
+    /**
      * Return any HTML that needs to be included in the page's <head> when
      * questions using this model are used.
      * @param $qa the question attempt that will be displayed on the page.

@@ -618,17 +618,74 @@ class question_usage_by_activity {
      *
      * @param int $timestamp optional, use this timestamp as 'now'.
      * @param array $postdata optional, only intended for testing. Use this data
+     * @param bool $responsereplayenabled optional, response replay enabled in quiz/question
      * instead of the data from $_POST.
      */
-    public function process_all_actions($timestamp = null, $postdata = null) {
+    public function process_all_actions($timestamp = null, $postdata = null, $responsereplayenabled = false) {
         foreach ($this->get_slots_in_request($postdata) as $slot) {
             if (!$this->validate_sequence_number($slot, $postdata)) {
                 continue;
             }
             $submitteddata = $this->extract_responses($slot, $postdata);
             $this->process_action($slot, $submitteddata, $timestamp);
+            if ($responsereplayenabled && $this->replay_requested_and_allowed($slot, $postdata)) {
+                $replaystep = $this->get_question_attempt($slot)->get_step($this->get_replay_step($slot, $postdata));
+                $replaydata = $replaystep->get_submitted_data();
+                array_walk_recursive($replaydata, array($this, 'convert_file_load_to_save'));
+                $this->process_action($slot, $replaydata, $timestamp);
+            }
         }
         $this->update_question_flags($postdata);
+    }
+
+    /**
+     * Checks if a replay request has been made and if settings allow the such a step.
+     *
+     * Checks if control field has data and if it does hands off to
+     * @see question_attempt::replay_requested_and_allowed() which
+     * performs additional verification including behaviour and question
+     * compatibility checks
+     *
+     * @param int $slot The slot number to be checked
+     * @param null $postdata Simulated POST data for testing
+     * @return bool Whether or not a replay request must be processed
+     */
+    public function replay_requested_and_allowed($slot, $postdata = null) {
+        $qa = $this->get_question_attempt($slot);
+        $replaystep = $this->get_replay_step($slot, $postdata);
+        if (is_null($replaystep) || !$qa->replay_requested_and_allowed($replaystep)) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    /**
+     * Gets the request replay sequence/step number if any.
+     *
+     * Refers to the control field with the name replay for the
+     * slot in question to retrieve the data.
+     *
+     * @param int $slot The slot number to extract data for
+     * @param null $postdata Simulated POST data for testing
+     * @return int The step/sequence number requested
+     */
+    private function get_replay_step($slot, $postdata = null) {
+        $qa = $this->get_question_attempt($slot);
+        return $qa->get_submitted_var(
+            $qa->get_behaviour_field_name('replaysequence'), PARAM_INT, $postdata);
+    }
+
+    /**
+     * If it finds a file loader it will convert it to a file saver so that a
+     * a new instance of the file can be saved for a question step.
+     *
+     * @param mixed $item the item being operated on
+     */
+    private function convert_file_load_to_save(&$item) {
+        if ($item instanceof question_file_loader) {
+            $item = $item->get_question_file_saver();
+        }
     }
 
     /**

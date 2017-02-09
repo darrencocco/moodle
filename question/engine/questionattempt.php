@@ -1245,6 +1245,23 @@ class question_attempt {
     }
 
     /**
+     * Determines if a response replay has been requested and
+     * if so is it allowed.
+     *
+     * @param integer $stepnumber the step/sequence number that the user wants to replay
+     * @return bool valid replay request received
+     */
+    public function replay_requested_and_allowed($stepnumber) {
+        if ($stepnumber > 0 && array_key_exists($stepnumber, $this->steps) &&
+            $this->get_behaviour()->allows_response_replay() &&
+            $this->get_question()->qtype->supports_response_replay()) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
      * Process an autosave.
      *
      * NOTE: The adding of standard steps depends on the fact that behaviour->process_autosave calls
