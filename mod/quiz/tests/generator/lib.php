@@ -85,6 +85,7 @@ class mod_quiz_generator extends testing_module_generator {
             'showuserpicture'        => 0,
             'showblocks'             => 0,
             'navmethod'              => QUIZ_NAVMETHOD_FREE,
+            'responsereplayenabled'  => 0,
         );
 
         foreach ($defaultquizsettings as $name => $value) {

@@ -740,14 +740,19 @@ abstract class qbehaviour_walkthrough_test_base extends question_testcase {
         return $fulldata;
     }
 
-    protected function process_submission($data) {
+    /**
+     * Process a submission with the option of enabling response replay
+     *
+     * @param array $data data for question state
+     * @param boolean $responsereplay if response replay is enabled
+     */
+    protected function process_submission($data, $responsereplay = false) {
         // Backwards compatibility.
         reset($data);
         if (count($data) == 1 && key($data) === '-finish') {
             $this->finish();
         }
-
-        $this->quba->process_all_actions(time(), $this->response_data_to_post($data));
+        $this->quba->process_all_actions(time(), $this->response_data_to_post($data), $responsereplay);
     }
 
     /**

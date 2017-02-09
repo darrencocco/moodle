@@ -167,4 +167,13 @@ class qtype_essay extends question_type {
         $fs = get_file_storage();
         $fs->delete_area_files($contextid, 'qtype_essay', 'graderinfo', $questionid);
     }
+
+    /**
+     * Informs question engine that the Essay qtype supports response replay.
+     *
+     * @return bool
+     */
+    public function supports_response_replay() {
+        return true;
+    }
 }

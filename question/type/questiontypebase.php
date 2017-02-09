@@ -1435,6 +1435,18 @@ class question_type {
     public function supports_autosave_conversion() {
         return true;
     }
+
+    /**
+     * Indicates if the question supports response
+     * undo actions.
+     *
+     * Default is false.
+     *
+     * @return bool
+     */
+    public function supports_response_replay() {
+        return false;
+    }
 }
 
 

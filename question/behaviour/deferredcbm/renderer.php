@@ -69,7 +69,7 @@ class qbehaviour_deferredcbm_renderer extends qbehaviour_renderer {
                 $qa->get_last_behaviour_var('certainty'), $options->readonly);
 
         return html_writer::tag('div', get_string('howcertainareyou', 'qbehaviour_deferredcbm', $a),
-                array('class' => 'certaintychoices'));
+                array('class' => 'certaintychoices')) . $this->replay_button($qa, $options);
     }
 
     public function feedback(question_attempt $qa, question_display_options $options) {

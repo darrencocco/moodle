@@ -1439,6 +1439,18 @@ $capabilities = array(
         )
     ),
 
+    // While attempting questions, the ability to retrieve the metadata of steps completed.
+    'moodle/question:getsteps' => array(
+        'captype' => 'read',
+        'contextlevel' => CONTEXT_COURSE,
+        'archetypes' => array(
+            'student' => CAP_ALLOW,
+            'teacher' => CAP_ALLOW,
+            'editingteacher' => CAP_ALLOW,
+            'manager' => CAP_ALLOW
+        )
+    ),
+
     'moodle/site:doclinks' => array(
         'captype' => 'read',
         'contextlevel' => CONTEXT_SYSTEM,

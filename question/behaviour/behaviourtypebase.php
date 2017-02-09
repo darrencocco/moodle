@@ -111,6 +111,16 @@ abstract class question_behaviour_type {
     public function allows_multiple_submitted_responses() {
         return false;
     }
+
+    /**
+     * Does this question behaviour allow responses to be replayed to one of their previous
+     * sequence steps.
+     *
+     * @return bool
+     */
+    public function allows_response_replay() {
+        return false;
+    }
 }
 
 

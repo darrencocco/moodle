@@ -218,5 +218,17 @@ function xmldb_quiz_upgrade($oldversion) {
         upgrade_mod_savepoint(true, 2016052301, 'quiz');
     }
 
+    if ($oldversion < 2016052302) {
+        $table = new xmldb_table('quiz');
+
+        $field = new xmldb_field('responsereplayenabled', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, 0);
+
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+
+        upgrade_mod_savepoint(true, 2016052302, 'quiz');
+    }
+
     return true;
 }
