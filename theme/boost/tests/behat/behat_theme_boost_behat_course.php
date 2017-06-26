@@ -49,6 +49,10 @@ class behat_theme_boost_behat_course extends behat_course {
 
         // Find the menu.
         $menunode = $activitynode->find('css', 'a[data-toggle=dropdown]');
+        if (!$menunode) {
+            throw new ExpectationException(sprintf('Could not find actions menu for the activity "%s"', $activityname),
+                    $this->getSession());
+        }
         $expanded = $menunode->getAttribute('aria-expanded');
         if ($expanded == 'true') {
             return;
@@ -58,6 +62,7 @@ class behat_theme_boost_behat_course extends behat_course {
             array("a[data-toggle='dropdown']", "css_element", $this->escape($activityname))
         );
 
+        $this->actions_menu_should_be_open($activityname);
     }
 
     public function i_close_actions_menu($activityname) {
@@ -70,6 +75,10 @@ class behat_theme_boost_behat_course extends behat_course {
         $activitynode = $this->get_activity_node($activityname);
         // Find the menu.
         $menunode = $activitynode->find('css', 'a[data-toggle=dropdown]');
+        if (!$menunode) {
+            throw new ExpectationException(sprintf('Could not find actions menu for the activity "%s"', $activityname),
+                    $this->getSession());
+        }
         $expanded = $menunode->getAttribute('aria-expanded');
         if ($expanded != 'true') {
             return;
@@ -89,6 +98,10 @@ class behat_theme_boost_behat_course extends behat_course {
         $activitynode = $this->get_activity_node($activityname);
         // Find the menu.
         $menunode = $activitynode->find('css', 'a[data-toggle=dropdown]');
+        if (!$menunode) {
+            throw new ExpectationException(sprintf('Could not find actions menu for the activity "%s"', $activityname),
+                    $this->getSession());
+        }
         $expanded = $menunode->getAttribute('aria-expanded');
         if ($expanded != 'true') {
             throw new ExpectationException(sprintf("The action menu for '%s' is not open", $activityname), $this->getSession());
@@ -245,5 +258,20 @@ class behat_theme_boost_behat_course extends behat_course {
             $actionnode = $actionsnode->find('css', '.action-'.$action);
         }
         $actionnode->click();
+    }
+
+    protected function is_course_editor() {
+
+        // We don't need to behat_base::spin() here as all is already loaded.
+        if (!$this->getSession()->getPage()->findLink(get_string('turneditingoff')) &&
+                !$this->getSession()->getPage()->findLink(get_string('turneditingon'))) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public function i_navigate_to_course_participants() {
+        $this->execute('behat_navigation::i_select_from_flat_navigation_drawer', get_string('participants'));
     }
 }

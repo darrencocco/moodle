@@ -438,6 +438,7 @@ class mod_assign_external_testcase extends externallib_advanced_testcase {
         $submission = $assignment['submissions'][0];
         $this->assertEquals($sid, $submission['id']);
         $this->assertCount(1, $submission['plugins']);
+        $this->assertEquals('notgraded', $submission['gradingstatus']);
     }
 
     /**
@@ -2202,6 +2203,7 @@ class mod_assign_external_testcase extends externallib_advanced_testcase {
         $this->setUser($teacher);
 
         $result = mod_assign_external::get_participant($assign->id, $student->id, false);
+        $result = external_api::clean_returnvalue(mod_assign_external::get_participant_returns(), $result);
     }
 
     /**
@@ -2223,13 +2225,15 @@ class mod_assign_external_testcase extends externallib_advanced_testcase {
         $this->setUser($teacher);
 
         $result = mod_assign_external::get_participant($assign->id, $student->id, true);
+        $result = external_api::clean_returnvalue(mod_assign_external::get_participant_returns(), $result);
         $this->assertEquals($student->id, $result['id']);
         $this->assertFalse(fullname($student) == $result['fullname']);
         $this->assertFalse($result['submitted']);
         $this->assertFalse($result['requiregrading']);
+        $this->assertFalse($result['grantedextension']);
         $this->assertTrue($result['blindmarking']);
         // Make sure we don't get any additional info.
-        $this->assertTrue(empty($result['user']));
+        $this->assertArrayNotHasKey('user', $result);
     }
 
     /**
@@ -2275,13 +2279,15 @@ class mod_assign_external_testcase extends externallib_advanced_testcase {
         $this->setUser($teacher);
 
         $result = mod_assign_external::get_participant($assignmodule->id, $student->id, false);
+        $result = external_api::clean_returnvalue(mod_assign_external::get_participant_returns(), $result);
         $this->assertEquals($student->id, $result['id']);
         $this->assertEquals(fullname($student), $result['fullname']);
         $this->assertTrue($result['submitted']);
         $this->assertTrue($result['requiregrading']);
+        $this->assertFalse($result['grantedextension']);
         $this->assertFalse($result['blindmarking']);
         // Make sure we don't get any additional info.
-        $this->assertTrue(empty($result['user']));
+        $this->assertArrayNotHasKey('user', $result);
     }
 
     /**
@@ -2302,6 +2308,7 @@ class mod_assign_external_testcase extends externallib_advanced_testcase {
         $this->setUser($teacher);
 
         $result = mod_assign_external::get_participant($assign->id, $student->id, true);
+        $result = external_api::clean_returnvalue(mod_assign_external::get_participant_returns(), $result);
         // Check some of the extended properties we get when requesting the user.
         $this->assertEquals($student->id, $result['id']);
         // We should get user infomation back.
@@ -2353,6 +2360,7 @@ class mod_assign_external_testcase extends externallib_advanced_testcase {
         $this->setUser($teacher);
 
         $result = mod_assign_external::get_participant($assignmodule->id, $student->id, false);
+        $result = external_api::clean_returnvalue(mod_assign_external::get_participant_returns(), $result);
         // Check some of the extended properties we get when not requesting a summary.
         $this->assertEquals($student->id, $result['id']);
         $this->assertEquals($group->id, $result['groupid']);
@@ -2386,7 +2394,8 @@ class mod_assign_external_testcase extends externallib_advanced_testcase {
         $DB->update_record('user', $student);
 
         $this->setUser($teacher);
-        $participants = mod_assign_external::list_participants($assignment->id, 0, '', 0, 0, false);
+        $participants = mod_assign_external::list_participants($assignment->id, 0, '', 0, 0, false, true);
+        $participants = external_api::clean_returnvalue(mod_assign_external::list_participants_returns(), $participants);
         $this->assertCount(1, $participants);
 
         // Asser that we have a valid response data.
@@ -2401,6 +2410,13 @@ class mod_assign_external_testcase extends externallib_advanced_testcase {
         $this->assertEquals($student->phone2, $participant['phone2']);
         $this->assertEquals($student->department, $participant['department']);
         $this->assertEquals($student->institution, $participant['institution']);
+        $this->assertArrayHasKey('enrolledcourses', $participant);
+
+        $participants = mod_assign_external::list_participants($assignment->id, 0, '', 0, 0, false, false);
+        $participants = external_api::clean_returnvalue(mod_assign_external::list_participants_returns(), $participants);
+        // Check that the list of courses the participant is enrolled is not returned.
+        $participant = $participants[0];
+        $this->assertArrayNotHasKey('enrolledcourses', $participant);
     }
 
     /**

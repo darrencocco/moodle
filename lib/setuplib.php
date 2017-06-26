@@ -384,7 +384,14 @@ function default_exception_handler($ex) {
                 // If you enable db debugging and exception is thrown, the print footer prints a lot of rubbish
                 $DB->set_debug(0);
             }
-            echo $OUTPUT->fatal_error($info->message, $info->moreinfourl, $info->link, $info->backtrace, $info->debuginfo,
+            if (AJAX_SCRIPT) {
+                // If we are in an AJAX script we don't want to use PREFERRED_RENDERER_TARGET.
+                // Because we know we will want to use ajax format.
+                $renderer = $PAGE->get_renderer('core', null, 'ajax');
+            } else {
+                $renderer = $OUTPUT;
+            }
+            echo $renderer->fatal_error($info->message, $info->moreinfourl, $info->link, $info->backtrace, $info->debuginfo,
                 $info->errorcode);
         } catch (Exception $e) {
             $out_ex = $e;
@@ -730,6 +737,9 @@ function get_docs_url($path = null) {
 /**
  * Formats a backtrace ready for output.
  *
+ * This function does not include function arguments because they could contain sensitive information
+ * not suitable to be exposed in a response.
+ *
  * @param array $callers backtrace array, as returned by debug_backtrace().
  * @param boolean $plaintext if false, generates HTML, if true generates plain text.
  * @return string formatted backtrace, ready for output.
@@ -894,7 +904,11 @@ function initialise_fullme() {
     // (That is, the Moodle server uses http, with an external box translating everything to https).
     if (empty($CFG->sslproxy)) {
         if ($rurl['scheme'] === 'http' and $wwwroot['scheme'] === 'https') {
-            print_error('sslonlyaccess', 'error');
+            if (defined('REQUIRE_CORRECT_ACCESS') && REQUIRE_CORRECT_ACCESS) {
+                print_error('sslonlyaccess', 'error');
+            } else {
+                redirect($CFG->wwwroot, get_string('wwwrootmismatch', 'error', $CFG->wwwroot), 3);
+            }
         }
     } else {
         if ($wwwroot['scheme'] !== 'https') {
@@ -1378,19 +1392,41 @@ function disable_output_buffering() {
     ini_set('output_handler', '');
 
     error_reporting($olddebug);
+
+    // Disable buffering in nginx.
+    header('X-Accel-Buffering: no');
+
 }
 
 /**
- * Check whether a major upgrade is needed. That is defined as an upgrade that
- * changes something really fundamental in the database, so nothing can possibly
- * work until the database has been updated, and that is defined by the hard-coded
- * version number in this function.
+ * Check whether a major upgrade is needed.
+ *
+ * That is defined as an upgrade that changes something really fundamental
+ * in the database, so nothing can possibly work until the database has
+ * been updated, and that is defined by the hard-coded version number in
+ * this function.
+ *
+ * @return bool
+ */
+function is_major_upgrade_required() {
+    global $CFG;
+    $lastmajordbchanges = 2017040403.00;
+
+    $required = empty($CFG->version);
+    $required = $required || (float)$CFG->version < $lastmajordbchanges;
+    $required = $required || during_initial_install();
+    $required = $required || !empty($CFG->adminsetuppending);
+
+    return $required;
+}
+
+/**
+ * Redirect to the Notifications page if a major upgrade is required, and
+ * terminate the current user session.
  */
 function redirect_if_major_upgrade_required() {
     global $CFG;
-    $lastmajordbchanges = 2016100501.00;
-    if (empty($CFG->version) or (float)$CFG->version < $lastmajordbchanges or
-            during_initial_install() or !empty($CFG->adminsetuppending)) {
+    if (is_major_upgrade_required()) {
         try {
             @\core\session\manager::terminate_current();
         } catch (Exception $e) {

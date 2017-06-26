@@ -513,6 +513,8 @@ class mod_assign_locallib_testcase extends mod_assign_base_testcase {
         $data = new stdClass();
         $data->reset_assign_submissions = 1;
         $data->reset_gradebook_grades = 1;
+        $data->reset_assign_user_overrides = 1;
+        $data->reset_assign_group_overrides = 1;
         $data->courseid = $this->course->id;
         $data->timeshift = 24*60*60;
         $this->setUser($this->editingteachers[0]);
@@ -797,6 +799,20 @@ class mod_assign_locallib_testcase extends mod_assign_base_testcase {
         $this->assertEquals($student->id, $participant->id);
         $this->assertFalse($participant->submitted);
         $this->assertFalse($participant->requiregrading);
+        $this->assertFalse($participant->grantedextension);
+    }
+
+    public function test_get_participant_granted_extension() {
+        $assign = $this->create_instance(array('grade' => 100));
+        $student = $this->students[0];
+        $this->setUser($this->editingteachers[0]);
+        $assign->save_user_extension($student->id, time());
+        $participant = $assign->get_participant($student->id);
+
+        $this->assertEquals($student->id, $participant->id);
+        $this->assertFalse($participant->submitted);
+        $this->assertFalse($participant->requiregrading);
+        $this->assertTrue($participant->grantedextension);
     }
 
     public function test_get_participant_with_ungraded_submission() {
@@ -826,6 +842,7 @@ class mod_assign_locallib_testcase extends mod_assign_base_testcase {
         $this->assertEquals($student->id, $participant->id);
         $this->assertTrue($participant->submitted);
         $this->assertTrue($participant->requiregrading);
+        $this->assertFalse($participant->grantedextension);
     }
 
     public function test_get_participant_with_graded_submission() {
@@ -865,6 +882,7 @@ class mod_assign_locallib_testcase extends mod_assign_base_testcase {
         $this->assertEquals($student->id, $participant->id);
         $this->assertTrue($participant->submitted);
         $this->assertFalse($participant->requiregrading);
+        $this->assertFalse($participant->grantedextension);
     }
 
     public function test_count_teams() {
@@ -929,7 +947,7 @@ class mod_assign_locallib_testcase extends mod_assign_base_testcase {
         $this->assertEmpty($notices, 'No errors on save submission');
 
         // Set active groups to all groups.
-        $this->setUser($this->teachers[0]);
+        $this->setUser($this->editingteachers[0]);
         $SESSION->activegroup[$this->course->id]['aag'][0] = 0;
         $this->assertEquals(1, $assign->count_submissions_with_status(ASSIGN_SUBMISSION_STATUS_SUBMITTED));
 
@@ -1055,7 +1073,7 @@ class mod_assign_locallib_testcase extends mod_assign_base_testcase {
         $this->assertEquals(1, $assign2->count_submissions_with_status(ASSIGN_SUBMISSION_STATUS_SUBMITTED));
 
         // Set active groups to all groups.
-        $this->setUser($this->teachers[0]);
+        $this->setUser($this->editingteachers[0]);
         $SESSION->activegroup[$this->course->id]['aag'][0] = 0;
         $this->assertEquals(1, $assign2->count_submissions_with_status(ASSIGN_SUBMISSION_STATUS_SUBMITTED));
 
@@ -1226,10 +1244,12 @@ class mod_assign_locallib_testcase extends mod_assign_base_testcase {
         $data->grade = '50.0';
 
         // This student will not receive notification.
+        $data->sendstudentnotifications = 1;
         $data->workflowstate = ASSIGN_MARKING_WORKFLOW_STATE_READYFORRELEASE;
         $assign->testable_apply_grade_to_user($data, $this->students[0]->id, 0);
 
         // This student will receive notification.
+        $data->sendstudentnotifications = 1;
         $data->workflowstate = ASSIGN_MARKING_WORKFLOW_STATE_RELEASED;
         $assign->testable_apply_grade_to_user($data, $this->students[1]->id, 0);
 
@@ -1244,6 +1264,40 @@ class mod_assign_locallib_testcase extends mod_assign_base_testcase {
         $this->assertEquals(1, count($messages));
         $this->assertEquals($messages[0]->useridto, $this->students[1]->id);
         $this->assertEquals($assign->get_instance()->name, $messages[0]->contexturlname);
+    }
+
+    public function test_cron_message_includes_courseid() {
+        // First run cron so there are no messages waiting to be sent (from other tests).
+        cron_setup_user();
+        assign::cron();
+
+        // Now create an assignment.
+        $this->setUser($this->editingteachers[0]);
+        $assign = $this->create_instance(array('sendstudentnotifications' => 1));
+
+        // Simulate adding a grade.
+        $this->setUser($this->teachers[0]);
+        $data = new stdClass();
+        $data->grade = '50.0';
+        $assign->testable_apply_grade_to_user($data, $this->students[0]->id, 0);
+
+        $this->preventResetByRollback();
+        $sink = $this->redirectEvents();
+        $this->expectOutputRegex('/Done processing 1 assignment submissions/');
+
+        assign::cron();
+
+        $events = $sink->get_events();
+        // Two messages are sent, one to student and one to teacher. This generates
+        // four events:
+        // core\event\message_sent
+        // core\event\message_viewed
+        // core\event\message_sent
+        // core\event\message_viewed.
+        $event = reset($events);
+        $this->assertInstanceOf('\core\event\message_sent', $event);
+        $this->assertEquals($assign->get_course()->id, $event->other['courseid']);
+        $sink->close();
     }
 
     public function test_is_graded() {
@@ -2138,15 +2192,18 @@ class mod_assign_locallib_testcase extends mod_assign_base_testcase {
 
         // Check the allocated marker can view the submission.
         $this->setUser($this->teachers[0]);
-        $gradingtable = new assign_grading_table($assign, 100, '', 0, true);
-        $output = $assign->get_renderer()->render($gradingtable);
-        $this->assertEquals(true, strpos($output, $this->students[0]->lastname));
 
+        $users = $assign->list_participants(0, true);
+        $user = reset($users);
+        $this->assertEquals($this->students[0]->id, $user->id);
+
+        $cm = get_coursemodule_from_instance('assign', $assign->get_instance()->id);
+        $context = context_module::instance($cm->id);
+        $assign = new testable_assign($context, $cm, $this->course);
         // Check that other teachers can't view this submission.
         $this->setUser($this->teachers[1]);
-        $gradingtable = new assign_grading_table($assign, 100, '', 0, true);
-        $output = $assign->get_renderer()->render($gradingtable);
-        $this->assertNotEquals(true, strpos($output, $this->students[0]->lastname));
+        $users = $assign->list_participants(0, true);
+        $this->assertEquals(0, count($users));
     }
 
     /**
@@ -2621,6 +2678,119 @@ Anchor link 2:<a title=\"bananas\" href=\"../logo-240x60.gif\">Link text</a>
             }
         }
         $this->assertEquals(2, $usingfilearea);
+    }
+
+    /**
+     * Test override exists
+     *
+     * This function needs to obey the group override logic as per the assign grading table and
+     * the overview block.
+     */
+    public function test_override_exists() {
+        global $DB;
+
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course();
+
+        // Create an assign instance.
+        $assign = $this->create_instance(['course' => $course]);
+        $assigninstance = $assign->get_instance();
+
+        // Create users.
+        $users = [
+            'Only in group A'                     => $this->getDataGenerator()->create_user(),
+            'Only in group B'                     => $this->getDataGenerator()->create_user(),
+            'In group A and B (no user override)' => $this->getDataGenerator()->create_user(),
+            'In group A and B (user override)'    => $this->getDataGenerator()->create_user(),
+            'In no groups'                        => $this->getDataGenerator()->create_user()
+        ];
+
+        // Enrol users.
+        foreach ($users as $user) {
+            $this->getDataGenerator()->enrol_user($user->id, $course->id);
+        }
+
+        // Create groups.
+        $groupa = $this->getDataGenerator()->create_group(['courseid' => $course->id]);
+        $groupb = $this->getDataGenerator()->create_group(['courseid' => $course->id]);
+
+        // Add members to groups.
+        // Group A.
+        $this->getDataGenerator()->create_group_member(
+            ['groupid' => $groupa->id, 'userid' => $users['Only in group A']->id]);
+        $this->getDataGenerator()->create_group_member(
+            ['groupid' => $groupa->id, 'userid' => $users['In group A and B (no user override)']->id]);
+        $this->getDataGenerator()->create_group_member(
+            ['groupid' => $groupa->id, 'userid' => $users['In group A and B (user override)']->id]);
+
+        // Group B.
+        $this->getDataGenerator()->create_group_member(
+            ['groupid' => $groupb->id, 'userid' => $users['Only in group B']->id]);
+        $this->getDataGenerator()->create_group_member(
+            ['groupid' => $groupb->id, 'userid' => $users['In group A and B (no user override)']->id]);
+        $this->getDataGenerator()->create_group_member(
+            ['groupid' => $groupb->id, 'userid' => $users['In group A and B (user override)']->id]);
+
+        // Overrides for each of the groups, and a user override.
+        $overrides = [
+            // Override for group A, highest priority (numerically lowest sortorder).
+            [
+                'assignid' => $assigninstance->id,
+                'groupid' => $groupa->id,
+                'userid' => null,
+                'sortorder' => 1,
+                'allowsubmissionsfromdate' => 1,
+                'duedate' => 2,
+                'cutoffdate' => 3
+            ],
+            // Override for group B, lower priority (numerically higher sortorder).
+            [
+                'assignid' => $assigninstance->id,
+                'groupid' => $groupb->id,
+                'userid' => null,
+                'sortorder' => 2,
+                'allowsubmissionsfromdate' => 5,
+                'duedate' => 6,
+                'cutoffdate' => 6
+            ],
+            // User override.
+            [
+                'assignid' => $assigninstance->id,
+                'groupid' => null,
+                'userid' => $users['In group A and B (user override)']->id,
+                'sortorder' => null,
+                'allowsubmissionsfromdate' => 7,
+                'duedate' => 8,
+                'cutoffdate' => 9
+            ],
+        ];
+
+        // Kinda hacky, need to add the ID to the overrides in the above array
+        // for later.
+        foreach ($overrides as &$override) {
+            $override['id'] = $DB->insert_record('assign_overrides', $override);
+        }
+
+        $returnedoverrides = array_reduce(array_keys($users), function($carry, $description) use ($users, $assign) {
+            return $carry + ['For user ' . lcfirst($description) => $assign->override_exists($users[$description]->id)];
+        }, []);
+
+        // Test we get back the correct override from override_exists (== checks all object members match).
+        // User only in group A should see the group A override.
+        $this->assertTrue($returnedoverrides['For user only in group A'] == (object)$overrides[0]);
+        // User only in group B should see the group B override.
+        $this->assertTrue($returnedoverrides['For user only in group B'] == (object)$overrides[1]);
+        // User in group A and B, with no user override should see the group A override
+        // as it has higher priority (numerically lower sortorder).
+        $this->assertTrue($returnedoverrides['For user in group A and B (no user override)'] == (object)$overrides[0]);
+        // User in group A and B, with a user override should see the user override
+        // as it has higher priority (numerically lower sortorder).
+        $this->assertTrue($returnedoverrides['For user in group A and B (user override)'] == (object)$overrides[2]);
+        // User with no overrides should get nothing.
+        $this->assertNull($returnedoverrides['For user in no groups']->duedate);
+        $this->assertNull($returnedoverrides['For user in no groups']->cutoffdate);
+        $this->assertNull($returnedoverrides['For user in no groups']->allowsubmissionsfromdate);
     }
 
     /**

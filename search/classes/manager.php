@@ -198,12 +198,9 @@ class manager {
      */
     public static function get_search_area($areaid) {
 
-        // Try both caches, it does not matter where it comes from.
+        // We have them all here.
         if (!empty(static::$allsearchareas[$areaid])) {
             return static::$allsearchareas[$areaid];
-        }
-        if (!empty(static::$enabledsearchareas[$areaid])) {
-            return static::$enabledsearchareas[$areaid];
         }
 
         $classname = static::get_area_classname($areaid);
@@ -224,13 +221,16 @@ class manager {
     public static function get_search_areas_list($enabled = false) {
 
         // Two different arrays, we don't expect these arrays to be big.
-        if (!$enabled && static::$allsearchareas !== null) {
-            return static::$allsearchareas;
-        } else if ($enabled && static::$enabledsearchareas !== null) {
-            return static::$enabledsearchareas;
+        if (static::$allsearchareas !== null) {
+            if (!$enabled) {
+                return static::$allsearchareas;
+            } else {
+                return static::$enabledsearchareas;
+            }
         }
 
-        $searchareas = array();
+        static::$allsearchareas = array();
+        static::$enabledsearchareas = array();
 
         $plugintypes = \core_component::get_plugin_types();
         foreach ($plugintypes as $plugintype => $unused) {
@@ -248,8 +248,10 @@ class manager {
 
                     $areaid = static::generate_areaid($componentname, $areaname);
                     $searchclass = new $classname();
-                    if (!$enabled || ($enabled && $searchclass->is_enabled())) {
-                        $searchareas[$areaid] = $searchclass;
+
+                    static::$allsearchareas[$areaid] = $searchclass;
+                    if ($searchclass->is_enabled()) {
+                        static::$enabledsearchareas[$areaid] = $searchclass;
                     }
                 }
             }
@@ -269,20 +271,17 @@ class manager {
 
                 $areaid = static::generate_areaid($componentname, $areaname);
                 $searchclass = new $classname();
-                if (!$enabled || ($enabled && $searchclass->is_enabled())) {
-                    $searchareas[$areaid] = $searchclass;
+                static::$allsearchareas[$areaid] = $searchclass;
+                if ($searchclass->is_enabled()) {
+                    static::$enabledsearchareas[$areaid] = $searchclass;
                 }
             }
         }
 
-        // Cache results.
         if ($enabled) {
-            static::$enabledsearchareas = $searchareas;
-        } else {
-            static::$allsearchareas = $searchareas;
+            return static::$enabledsearchareas;
         }
-
-        return $searchareas;
+        return static::$allsearchareas;
     }
 
     /**
@@ -547,14 +546,10 @@ class manager {
             $this->engine->area_index_starting($searcharea, $fullindex);
 
             $indexingstart = time();
+            $elapsed = microtime(true);
 
             // This is used to store this component config.
             list($componentconfigname, $varname) = $searcharea->get_config_var_name();
-
-            $numrecords = 0;
-            $numdocs = 0;
-            $numdocsignored = 0;
-            $lastindexeddoc = 0;
 
             $prevtimestart = intval(get_config($componentconfigname, $varname . '_indexingstart'));
 
@@ -571,36 +566,17 @@ class manager {
             $fileindexing = $this->engine->file_indexing_enabled() && $searcharea->uses_file_indexing();
             $options = array('indexfiles' => $fileindexing, 'lastindexedtime' => $prevtimestart);
             $iterator = new \core\dml\recordset_walk($recordset, array($searcharea, 'get_document'), $options);
-            foreach ($iterator as $document) {
-                if (!$document instanceof \core_search\document) {
-                    continue;
-                }
-
-                if ($prevtimestart == 0) {
-                    // If we have never indexed this area before, it must be new.
-                    $document->set_is_new(true);
-                }
-
-                if ($fileindexing) {
-                    // Attach files if we are indexing.
-                    $searcharea->attach_files($document);
-                }
-
-                if ($this->engine->add_document($document, $fileindexing)) {
-                    $numdocs++;
-                } else {
-                    $numdocsignored++;
-                }
-
-                $lastindexeddoc = $document->get('modified');
-                $numrecords++;
-            }
+            list($numrecords,
+                 $numdocs,
+                 $numdocsignored,
+                 $lastindexeddoc) = $this->engine->add_documents($iterator, $searcharea, $options);
 
             if (CLI_SCRIPT && !PHPUNIT_TEST) {
                 if ($numdocs > 0) {
+                    $elapsed = round((microtime(true) - $elapsed), 3);
                     mtrace('Processed ' . $numrecords . ' records containing ' . $numdocs . ' documents for ' .
-                            $searcharea->get_visible_name() . ' area.');
-                } else  {
+                            $searcharea->get_visible_name() . ' area, in ' . $elapsed . ' seconds.');
+                } else {
                     mtrace('No new documents to index for ' . $searcharea->get_visible_name() . ' area.');
                 }
             }
@@ -699,7 +675,7 @@ class manager {
 
         $vars = array('indexingstart', 'indexingend', 'lastindexrun', 'docsignored', 'docsprocessed', 'recordsprocessed');
 
-        $configsettings =  array();
+        $configsettings = [];
         foreach ($searchareas as $searcharea) {
 
             $areaid = $searcharea->get_area_id();

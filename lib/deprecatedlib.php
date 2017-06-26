@@ -214,7 +214,7 @@ function get_plugin_directory($plugintype, $name) {
  * @deprecated since 2.6, use core_component::normalize_component()
  *
  * @param string $component
- * @return array as (string)$type => (string)$plugin
+ * @return array two-items list of [(string)type, (string|null)name]
  */
 function normalize_component($component) {
 
@@ -751,92 +751,25 @@ function mygroupid($courseid) {
     throw new coding_exception('mygroupid() can not be used any more, please use groups_get_all_groups() instead.');
 }
 
-
 /**
- * Returns the current group mode for a given course or activity module
- *
- * Could be false, SEPARATEGROUPS or VISIBLEGROUPS    (<-- Martin)
- *
  * @deprecated since Moodle 2.0 MDL-14617 - please do not use this function any more.
- * @todo MDL-50273 This will be deleted in Moodle 3.2.
- *
- * @param object $course Course Object
- * @param object $cm Course Manager Object
- * @return mixed $course->groupmode
  */
 function groupmode($course, $cm=null) {
-
-    debugging('groupmode() is deprecated, please use groups_get_* instead', DEBUG_DEVELOPER);
-    if (isset($cm->groupmode) && empty($course->groupmodeforce)) {
-        return $cm->groupmode;
-    }
-    return $course->groupmode;
+    throw new coding_exception('groupmode() can not be used any more, please use groups_get_* instead.');
 }
 
 /**
- * Sets the current group in the session variable
- * When $SESSION->currentgroup[$courseid] is set to 0 it means, show all groups.
- * Sets currentgroup[$courseid] in the session variable appropriately.
- * Does not do any permission checking.
- *
  * @deprecated Since year 2006 - please do not use this function any more.
- * @todo MDL-50273 This will be deleted in Moodle 3.2.
- *
- * @global object
- * @global object
- * @param int $courseid The course being examined - relates to id field in
- * 'course' table.
- * @param int $groupid The group being examined.
- * @return int Current group id which was set by this function
  */
 function set_current_group($courseid, $groupid) {
-    global $SESSION;
-
-    debugging('set_current_group() is deprecated, please use $SESSION->currentgroup[$courseid] instead', DEBUG_DEVELOPER);
-    return $SESSION->currentgroup[$courseid] = $groupid;
+    throw new coding_exception('set_current_group() can not be used anymore, please use $SESSION->currentgroup[$courseid] instead');
 }
 
 /**
- * Gets the current group - either from the session variable or from the database.
- *
  * @deprecated Since year 2006 - please do not use this function any more.
- * @todo MDL-50273 This will be deleted in Moodle 3.2.
- *
- * @global object
- * @param int $courseid The course being examined - relates to id field in
- * 'course' table.
- * @param bool $full If true, the return value is a full record object.
- * If false, just the id of the record.
- * @return int|bool
  */
 function get_current_group($courseid, $full = false) {
-    global $SESSION;
-
-    debugging('get_current_group() is deprecated, please use groups_get_* instead', DEBUG_DEVELOPER);
-    if (isset($SESSION->currentgroup[$courseid])) {
-        if ($full) {
-            return groups_get_group($SESSION->currentgroup[$courseid]);
-        } else {
-            return $SESSION->currentgroup[$courseid];
-        }
-    }
-
-    $mygroupid = mygroupid($courseid);
-    if (is_array($mygroupid)) {
-        $mygroupid = array_shift($mygroupid);
-        set_current_group($courseid, $mygroupid);
-        if ($full) {
-            return groups_get_group($mygroupid);
-        } else {
-            return $mygroupid;
-        }
-    }
-
-    if ($full) {
-        return false;
-    } else {
-        return 0;
-    }
+    throw new coding_exception('get_current_group() can not be used any more, please use groups_get_* instead');
 }
 
 /**
@@ -1077,7 +1010,7 @@ function print_arrow($direction='up', $strsort=null, $return=false) {
         $strsort  = get_string('sort' . $sortdir, 'grades');
     }
 
-    $return = ' <img src="'.$OUTPUT->pix_url('t/' . $direction) . '" alt="'.$strsort.'" /> ';
+    $return = ' ' . $OUTPUT->pix_icon('t/' . $direction, $strsort) . ' ';
 
     if ($return) {
         return $return;
@@ -2219,347 +2152,87 @@ function get_timezone_record($timezonename) {
 
 /* === Apis deprecated since Moodle 3.0 === */
 /**
- * Returns the URL of the HTTP_REFERER, less the querystring portion if required.
- *
  * @deprecated since Moodle 3.0 MDL-49360 - please do not use this function any more.
- * @todo MDL-50265 Remove this function in Moodle 3.4.
- * @param boolean $stripquery if true, also removes the query part of the url.
- * @return string The resulting referer or empty string.
  */
 function get_referer($stripquery = true) {
-    debugging('get_referer() is deprecated. Please use get_local_referer() instead.', DEBUG_DEVELOPER);
-    if (isset($_SERVER['HTTP_REFERER'])) {
-        if ($stripquery) {
-            return strip_querystring($_SERVER['HTTP_REFERER']);
-        } else {
-            return $_SERVER['HTTP_REFERER'];
-        }
-    } else {
-        return '';
-    }
+    throw new coding_exception('get_referer() can not be used any more. Please use get_local_referer() instead.');
 }
 
 /**
- * Checks if current user is a web crawler.
- *
- * This list can not be made complete, this is not a security
- * restriction, we make the list only to help these sites
- * especially when automatic guest login is disabled.
- *
- * If admin needs security they should enable forcelogin
- * and disable guest access!!
- *
- * @return bool
  * @deprecated since Moodle 3.0 use \core_useragent::is_web_crawler instead.
  */
 function is_web_crawler() {
-    debugging('is_web_crawler() has been deprecated, please use core_useragent::is_web_crawler() instead.', DEBUG_DEVELOPER);
-    return core_useragent::is_web_crawler();
+    throw new coding_exception('is_web_crawler() can not be used any more. Please use core_useragent::is_web_crawler() instead.');
 }
 
 /**
- * Update user's course completion statuses
- *
- * First update all criteria completions, then aggregate all criteria completions
- * and update overall course completions.
- *
  * @deprecated since Moodle 3.0 MDL-50287 - please do not use this function any more.
- * @todo Remove this function in Moodle 3.2 MDL-51226.
  */
 function completion_cron() {
-    global $CFG;
-    require_once($CFG->dirroot.'/completion/cron.php');
-
-    debugging('completion_cron() is deprecated. Functionality has been moved to scheduled tasks.', DEBUG_DEVELOPER);
-    completion_cron_mark_started();
-
-    completion_cron_criteria();
-
-    completion_cron_completions();
+    throw new coding_exception('completion_cron() can not be used any more. Functionality has been moved to scheduled tasks.');
 }
 
 /**
- * Returns an ordered array of tags associated with visible courses
- * (boosted replacement of get_all_tags() allowing association with user and tagtype).
- *
  * @deprecated since 3.0
- * @package  core_tag
- * @category tag
- * @param    int      $courseid A course id. Passing 0 will return all distinct tags for all visible courses
- * @param    int      $userid   (optional) the user id, a default of 0 will return all users tags for the course
- * @param    string   $tagtype  (optional) The type of tag, empty string returns all types. Currently (Moodle 2.2) there are two
- *                              types of tags which are used within Moodle, they are 'official' and 'default'.
- * @param    int      $numtags  (optional) number of tags to display, default of 80 is set in the block, 0 returns all
- * @param    string   $unused   (optional) was selected sorting, moved to tag_print_cloud()
- * @return   array
  */
 function coursetag_get_tags($courseid, $userid=0, $tagtype='', $numtags=0, $unused = '') {
-    debugging('Function coursetag_get_tags() is deprecated. Userid is no longer used for tagging courses.', DEBUG_DEVELOPER);
-
-    global $CFG, $DB;
-
-    // get visible course ids
-    $courselist = array();
-    if ($courseid === 0) {
-        if ($courses = $DB->get_records_select('course', 'visible=1 AND category>0', null, '', 'id')) {
-            foreach ($courses as $key => $value) {
-                $courselist[] = $key;
-            }
-        }
-    }
-
-    // get tags from the db ordered by highest count first
-    $params = array();
-    $sql = "SELECT id as tkey, name, id, isstandard, rawname, f.timemodified, flag, count
-              FROM {tag} t,
-                 (SELECT tagid, MAX(timemodified) as timemodified, COUNT(id) as count
-                    FROM {tag_instance}
-                   WHERE itemtype = 'course' ";
-
-    if ($courseid > 0) {
-        $sql .= "    AND itemid = :courseid ";
-        $params['courseid'] = $courseid;
-    } else {
-        if (!empty($courselist)) {
-            list($usql, $uparams) = $DB->get_in_or_equal($courselist, SQL_PARAMS_NAMED);
-            $sql .= "AND itemid $usql ";
-            $params = $params + $uparams;
-        }
-    }
-
-    if ($userid > 0) {
-        $sql .= "    AND tiuserid = :userid ";
-        $params['userid'] = $userid;
-    }
-
-    $sql .= "   GROUP BY tagid) f
-             WHERE t.id = f.tagid ";
-    if ($tagtype != '') {
-        $sql .= "AND isstandard = :isstandard ";
-        $params['isstandard'] = ($tagtype === 'official') ? 1 : 0;
-    }
-    $sql .= "ORDER BY count DESC, name ASC";
-
-    // limit the number of tags for output
-    if ($numtags == 0) {
-        $tags = $DB->get_records_sql($sql, $params);
-    } else {
-        $tags = $DB->get_records_sql($sql, $params, 0, $numtags);
-    }
-
-    // prepare the return
-    $return = array();
-    if ($tags) {
-        // avoid print_tag_cloud()'s ksort upsetting ordering by setting the key here
-        foreach ($tags as $value) {
-            $return[] = $value;
-        }
-    }
-
-    return $return;
-
+    throw new coding_exception('Function coursetag_get_tags() can not be used any more. Userid is no longer used for tagging courses.');
 }
 
 /**
- * Returns an ordered array of tags
- * (replaces popular_tags_count() allowing sorting).
- *
  * @deprecated since 3.0
- * @package  core_tag
- * @category tag
- * @param    string $unused (optional) was selected sorting - moved to tag_print_cloud()
- * @param    int    $numtags (optional) number of tags to display, default of 20 is set in the block, 0 returns all
- * @return   array
  */
 function coursetag_get_all_tags($unused='', $numtags=0) {
-    debugging('Function coursetag_get_all_tag() is deprecated. Userid is no longer used for tagging courses.', DEBUG_DEVELOPER);
-
-    global $CFG, $DB;
-
-    // note that this selects all tags except for courses that are not visible
-    $sql = "SELECT id, name, isstandard, rawname, f.timemodified, flag, count
-        FROM {tag} t,
-        (SELECT tagid, MAX(timemodified) as timemodified, COUNT(id) as count
-            FROM {tag_instance} WHERE tagid NOT IN
-                (SELECT tagid FROM {tag_instance} ti, {course} c
-                WHERE c.visible = 0
-                AND ti.itemtype = 'course'
-                AND ti.itemid = c.id)
-        GROUP BY tagid) f
-        WHERE t.id = f.tagid
-        ORDER BY count DESC, name ASC";
-    if ($numtags == 0) {
-        $tags = $DB->get_records_sql($sql);
-    } else {
-        $tags = $DB->get_records_sql($sql, null, 0, $numtags);
-    }
-
-    $return = array();
-    if ($tags) {
-        foreach ($tags as $value) {
-            $return[] = $value;
-        }
-    }
-
-    return $return;
+    throw new coding_exception('Function coursetag_get_all_tag() can not be used any more. Userid is no longer used for tagging courses.');
 }
 
 /**
- * Returns javascript for use in tags block and supporting pages
- *
  * @deprecated since 3.0
- * @package  core_tag
- * @category tag
- * @return   null
  */
 function coursetag_get_jscript() {
-    debugging('Function coursetag_get_jscript() is deprecated and obsolete.', DEBUG_DEVELOPER);
-    return '';
+    throw new coding_exception('Function coursetag_get_jscript() can not be used any more and is obsolete.');
 }
 
 /**
- * Returns javascript to create the links in the tag block footer.
- *
  * @deprecated since 3.0
- * @package  core_tag
- * @category tag
- * @param    string   $elementid       the element to attach the footer to
- * @param    array    $coursetagslinks links arrays each consisting of 'title', 'onclick' and 'text' elements
- * @return   string   always returns a blank string
  */
 function coursetag_get_jscript_links($elementid, $coursetagslinks) {
-    debugging('Function coursetag_get_jscript_links() is deprecated and obsolete.', DEBUG_DEVELOPER);
-    return '';
+    throw new coding_exception('Function coursetag_get_jscript_links() can not be used any more and is obsolete.');
 }
 
 /**
- * Returns all tags created by a user for a course
- *
  * @deprecated since 3.0
- * @package  core_tag
- * @category tag
- * @param    int      $courseid tags are returned for the course that has this courseid
- * @param    int      $userid   return tags which were created by this user
  */
 function coursetag_get_records($courseid, $userid) {
-    debugging('Function coursetag_get_records() is deprecated. Userid is no longer used for tagging courses.', DEBUG_DEVELOPER);
-
-    global $CFG, $DB;
-
-    $sql = "SELECT t.id, name, rawname
-              FROM {tag} t, {tag_instance} ti
-             WHERE t.id = ti.tagid
-                 AND ti.tiuserid = :userid
-                 AND ti.itemid = :courseid
-          ORDER BY name ASC";
-
-    return $DB->get_records_sql($sql, array('userid'=>$userid, 'courseid'=>$courseid));
+    throw new coding_exception('Function coursetag_get_records() can not be used any more. Userid is no longer used for tagging courses.');
 }
 
 /**
- * Stores a tag for a course for a user
- *
  * @deprecated since 3.0
- * @package  core_tag
- * @category tag
- * @param    array  $tags     simple array of keywords to be stored
- * @param    int    $courseid the id of the course we wish to store a tag for
- * @param    int    $userid   the id of the user we wish to store a tag for
- * @param    string $tagtype  official or default only
- * @param    string $myurl    (optional) for logging creation of course tags
  */
 function coursetag_store_keywords($tags, $courseid, $userid=0, $tagtype='official', $myurl='') {
-    debugging('Function coursetag_store_keywords() is deprecated. Userid is no longer used for tagging courses.', DEBUG_DEVELOPER);
-
-    global $CFG;
-
-    if (is_array($tags) and !empty($tags)) {
-        if ($tagtype === 'official') {
-            $tagcoll = core_tag_area::get_collection('core', 'course');
-            // We don't normally need to create tags, they are created automatically when added to items. but we do here because we want them to be official.
-            core_tag_tag::create_if_missing($tagcoll, $tags, true);
-        }
-        foreach ($tags as $tag) {
-            $tag = trim($tag);
-            if (strlen($tag) > 0) {
-                core_tag_tag::add_item_tag('core', 'course', $courseid, context_course::instance($courseid), $tag, $userid);
-            }
-        }
-    }
-
+    throw new coding_exception('Function coursetag_store_keywords() can not be used any more. Userid is no longer used for tagging courses.');
 }
 
 /**
- * Deletes a personal tag for a user for a course.
- *
  * @deprecated since 3.0
- * @package  core_tag
- * @category tag
- * @param    int      $tagid    the tag we wish to delete
- * @param    int      $userid   the user that the tag is associated with
- * @param    int      $courseid the course that the tag is associated with
  */
 function coursetag_delete_keyword($tagid, $userid, $courseid) {
-    debugging('Function coursetag_delete_keyword() is deprecated. Userid is no longer used for tagging courses.', DEBUG_DEVELOPER);
-
-    $tag = core_tag_tag::get($tagid);
-    core_tag_tag::remove_item_tag('core', 'course', $courseid, $tag->rawname, $userid);
+    throw new coding_exception('Function coursetag_delete_keyword() can not be used any more. Userid is no longer used for tagging courses.');
 }
 
 /**
- * Get courses tagged with a tag
- *
  * @deprecated since 3.0
- * @package  core_tag
- * @category tag
- * @param int $tagid
- * @return array of course objects
  */
 function coursetag_get_tagged_courses($tagid) {
-    debugging('Function coursetag_get_tagged_courses() is deprecated. Userid is no longer used for tagging courses.', DEBUG_DEVELOPER);
-
-    global $DB;
-
-    $courses = array();
-
-    $ctxselect = context_helper::get_preload_record_columns_sql('ctx');
-
-    $sql = "SELECT c.*, $ctxselect
-            FROM {course} c
-            JOIN {tag_instance} t ON t.itemid = c.id
-            JOIN {context} ctx ON ctx.instanceid = c.id
-            WHERE t.tagid = :tagid AND
-            t.itemtype = 'course' AND
-            ctx.contextlevel = :contextlevel
-            ORDER BY c.sortorder ASC";
-    $params = array('tagid' => $tagid, 'contextlevel' => CONTEXT_COURSE);
-    $rs = $DB->get_recordset_sql($sql, $params);
-    foreach ($rs as $course) {
-        context_helper::preload_from_record($course);
-        if ($course->visible == 1 || has_capability('moodle/course:viewhiddencourses', context_course::instance($course->id))) {
-            $courses[$course->id] = $course;
-        }
-    }
-    return $courses;
+    throw new coding_exception('Function coursetag_get_tagged_courses() can not be used any more. Userid is no longer used for tagging courses.');
 }
 
 /**
- * Course tagging function used only during the deletion of a course (called by lib/moodlelib.php) to clean up associated tags
- *
- * @package core_tag
  * @deprecated since 3.0
- * @param   int      $courseid     the course we wish to delete tag instances from
- * @param   bool     $showfeedback if we should output a notification of the delete to the end user
  */
 function coursetag_delete_course_tags($courseid, $showfeedback=false) {
-    debugging('Function coursetag_delete_course_tags() is deprecated. Use core_tag_tag::remove_all_item_tags().', DEBUG_DEVELOPER);
-
-    global $OUTPUT;
-    core_tag_tag::remove_all_item_tags('core', 'course', $courseid);
-
-    if ($showfeedback) {
-        echo $OUTPUT->notification(get_string('deletedcoursetags', 'tag'), 'notifysuccess');
-    }
+    throw new coding_exception('Function coursetag_delete_course_tags() is deprecated. Use core_tag_tag::remove_all_item_tags().');
 }
 
 /**
@@ -4909,4 +4582,1804 @@ class css_optimiser {
 
         return $css;
     }
+}
+
+/**
+ * Load the course contexts for all of the users courses
+ *
+ * @deprecated since Moodle 3.2
+ * @param array $courses array of course objects. The courses the user is enrolled in.
+ * @return array of course contexts
+ */
+function message_get_course_contexts($courses) {
+    debugging('message_get_course_contexts() is deprecated and is no longer used.', DEBUG_DEVELOPER);
+
+    $coursecontexts = array();
+
+    foreach($courses as $course) {
+        $coursecontexts[$course->id] = context_course::instance($course->id);
+    }
+
+    return $coursecontexts;
+}
+
+/**
+ * strip off action parameters like 'removecontact'
+ *
+ * @deprecated since Moodle 3.2
+ * @param moodle_url/string $moodleurl a URL. Typically the current page URL.
+ * @return string the URL minus parameters that perform actions (like adding/removing/blocking a contact).
+ */
+function message_remove_url_params($moodleurl) {
+    debugging('message_remove_url_params() is deprecated and is no longer used.', DEBUG_DEVELOPER);
+
+    $newurl = new moodle_url($moodleurl);
+    $newurl->remove_params('addcontact','removecontact','blockcontact','unblockcontact');
+    return $newurl->out();
+}
+
+/**
+ * Count the number of messages with a field having a specified value.
+ * if $field is empty then return count of the whole array
+ * if $field is non-existent then return 0
+ *
+ * @deprecated since Moodle 3.2
+ * @param array $messagearray array of message objects
+ * @param string $field the field to inspect on the message objects
+ * @param string $value the value to test the field against
+ */
+function message_count_messages($messagearray, $field='', $value='') {
+    debugging('message_count_messages() is deprecated and is no longer used.', DEBUG_DEVELOPER);
+
+    if (!is_array($messagearray)) return 0;
+    if ($field == '' or empty($messagearray)) return count($messagearray);
+
+    $count = 0;
+    foreach ($messagearray as $message) {
+        $count += ($message->$field == $value) ? 1 : 0;
+    }
+    return $count;
+}
+
+/**
+ * Count the number of users blocked by $user1
+ *
+ * @deprecated since Moodle 3.2
+ * @param object $user1 user object
+ * @return int the number of blocked users
+ */
+function message_count_blocked_users($user1=null) {
+    debugging('message_count_blocked_users() is deprecated, please use \core_message\api::count_blocked_users() instead.',
+        DEBUG_DEVELOPER);
+
+    return \core_message\api::count_blocked_users($user1);
+}
+
+/**
+ * Print a message contact link
+ *
+ * @deprecated since Moodle 3.2
+ * @param int $userid the ID of the user to apply to action to
+ * @param string $linktype can be add, remove, block or unblock
+ * @param bool $return if true return the link as a string. If false echo the link.
+ * @param string $script the URL to send the user to when the link is clicked. If null, the current page.
+ * @param bool $text include text next to the icons?
+ * @param bool $icon include a graphical icon?
+ * @return string  if $return is true otherwise bool
+ */
+function message_contact_link($userid, $linktype='add', $return=false, $script=null, $text=false, $icon=true) {
+    debugging('message_contact_link() is deprecated and is no longer used.', DEBUG_DEVELOPER);
+
+    global $OUTPUT, $PAGE;
+
+    //hold onto the strings as we're probably creating a bunch of links
+    static $str;
+
+    if (empty($script)) {
+        //strip off previous action params like 'removecontact'
+        $script = message_remove_url_params($PAGE->url);
+    }
+
+    if (empty($str->blockcontact)) {
+        $str = new stdClass();
+        $str->blockcontact   =  get_string('blockcontact', 'message');
+        $str->unblockcontact =  get_string('unblockcontact', 'message');
+        $str->removecontact  =  get_string('removecontact', 'message');
+        $str->addcontact     =  get_string('addcontact', 'message');
+    }
+
+    $command = $linktype.'contact';
+    $string  = $str->{$command};
+
+    $safealttext = s($string);
+
+    $safestring = '';
+    if (!empty($text)) {
+        $safestring = $safealttext;
+    }
+
+    $img = '';
+    if ($icon) {
+        $iconpath = null;
+        switch ($linktype) {
+            case 'block':
+                $iconpath = 't/block';
+                break;
+            case 'unblock':
+                $iconpath = 't/unblock';
+                break;
+            case 'remove':
+                $iconpath = 't/removecontact';
+                break;
+            case 'add':
+            default:
+                $iconpath = 't/addcontact';
+        }
+
+        $img = $OUTPUT->pix_icon($iconpath, $safealttext);
+    }
+
+    $output = '<span class="'.$linktype.'contact">'.
+        '<a href="'.$script.'&amp;'.$command.'='.$userid.
+        '&amp;sesskey='.sesskey().'" title="'.$safealttext.'">'.
+        $img.
+        $safestring.'</a></span>';
+
+    if ($return) {
+        return $output;
+    } else {
+        echo $output;
+        return true;
+    }
+}
+
+/**
+ * Get the users recent event notifications
+ *
+ * @deprecated since Moodle 3.2
+ * @param object $user the current user
+ * @param int $limitfrom can be used for paging
+ * @param int $limitto can be used for paging
+ * @return array
+ */
+function message_get_recent_notifications($user, $limitfrom=0, $limitto=100) {
+    debugging('message_get_recent_notifications() is deprecated and is no longer used.', DEBUG_DEVELOPER);
+
+    global $DB;
+
+    $userfields = user_picture::fields('u', array('lastaccess'));
+    $sql = "SELECT mr.id AS message_read_id, $userfields, mr.notification, mr.smallmessage, mr.fullmessage, mr.fullmessagehtml, mr.fullmessageformat, mr.timecreated as timecreated, mr.contexturl, mr.contexturlname
+              FROM {message_read} mr
+                   JOIN {user} u ON u.id=mr.useridfrom
+             WHERE mr.useridto = :userid1 AND u.deleted = '0' AND mr.notification = :notification
+             ORDER BY mr.timecreated DESC";
+    $params = array('userid1' => $user->id, 'notification' => 1);
+
+    $notifications =  $DB->get_records_sql($sql, $params, $limitfrom, $limitto);
+    return $notifications;
+}
+
+/**
+ * echo or return a link to take the user to the full message history between themselves and another user
+ *
+ * @deprecated since Moodle 3.2
+ * @param int $userid1 the ID of the user displayed on the left (usually the current user)
+ * @param int $userid2 the ID of the other user
+ * @param bool $return true to return the link as a string. False to echo the link.
+ * @param string $keywords any keywords to highlight in the message history
+ * @param string $position anchor name to jump to within the message history
+ * @param string $linktext optionally specify the link text
+ * @return string|bool. Returns a string if $return is true. Otherwise returns a boolean.
+ */
+function message_history_link($userid1, $userid2, $return=false, $keywords='', $position='', $linktext='') {
+    debugging('message_history_link() is deprecated and is no longer used.', DEBUG_DEVELOPER);
+
+    global $OUTPUT, $PAGE;
+    static $strmessagehistory;
+
+    if (empty($strmessagehistory)) {
+        $strmessagehistory = get_string('messagehistory', 'message');
+    }
+
+    if ($position) {
+        $position = "#$position";
+    }
+    if ($keywords) {
+        $keywords = "&search=".urlencode($keywords);
+    }
+
+    if ($linktext == 'icon') {  // Icon only
+        $fulllink = $OUTPUT->pix_icon('t/messages', $strmessagehistory);
+    } else if ($linktext == 'both') {  // Icon and standard name
+        $fulllink = $OUTPUT->pix_icon('t/messages', '');
+        $fulllink .= '&nbsp;'.$strmessagehistory;
+    } else if ($linktext) {    // Custom name
+        $fulllink = $linktext;
+    } else {                   // Standard name only
+        $fulllink = $strmessagehistory;
+    }
+
+    $popupoptions = array(
+        'height' => 500,
+        'width' => 500,
+        'menubar' => false,
+        'location' => false,
+        'status' => true,
+        'scrollbars' => true,
+        'resizable' => true);
+
+    $link = new moodle_url('/message/index.php?history='.MESSAGE_HISTORY_ALL."&user1=$userid1&user2=$userid2$keywords$position");
+    if ($PAGE->url && $PAGE->url->get_param('viewing')) {
+        $link->param('viewing', $PAGE->url->get_param('viewing'));
+    }
+    $action = null;
+    $str = $OUTPUT->action_link($link, $fulllink, $action, array('title' => $strmessagehistory));
+
+    $str = '<span class="history">'.$str.'</span>';
+
+    if ($return) {
+        return $str;
+    } else {
+        echo $str;
+        return true;
+    }
+}
+
+/**
+ * Search a user's messages
+ *
+ * Returns a list of posts found using an array of search terms
+ * eg   word  +word -word
+ *
+ * @deprecated since Moodle 3.2
+ * @param array $searchterms an array of search terms (strings)
+ * @param bool $fromme include messages from the user?
+ * @param bool $tome include messages to the user?
+ * @param mixed $courseid SITEID for admins searching all messages. Other behaviour not yet implemented
+ * @param int $userid the user ID of the current user
+ * @return mixed An array of messages or false if no matching messages were found
+ */
+function message_search($searchterms, $fromme=true, $tome=true, $courseid='none', $userid=0) {
+    debugging('message_search() is deprecated and is no longer used.', DEBUG_DEVELOPER);
+
+    global $CFG, $USER, $DB;
+
+    // If user is searching all messages check they are allowed to before doing anything else.
+    if ($courseid == SITEID && !has_capability('moodle/site:readallmessages', context_system::instance())) {
+        print_error('accessdenied','admin');
+    }
+
+    // If no userid sent then assume current user.
+    if ($userid == 0) $userid = $USER->id;
+
+    // Some differences in SQL syntax.
+    if ($DB->sql_regex_supported()) {
+        $REGEXP    = $DB->sql_regex(true);
+        $NOTREGEXP = $DB->sql_regex(false);
+    }
+
+    $searchcond = array();
+    $params = array();
+    $i = 0;
+
+    // Preprocess search terms to check whether we have at least 1 eligible search term.
+    // If we do we can drop words around it like 'a'.
+    $dropshortwords = false;
+    foreach ($searchterms as $searchterm) {
+        if (strlen($searchterm) >= 2) {
+            $dropshortwords = true;
+        }
+    }
+
+    foreach ($searchterms as $searchterm) {
+        $i++;
+
+        $NOT = false; // Initially we aren't going to perform NOT LIKE searches, only MSSQL and Oracle.
+
+        if ($dropshortwords && strlen($searchterm) < 2) {
+            continue;
+        }
+        // Under Oracle and MSSQL, trim the + and - operators and perform simpler LIKE search.
+        if (!$DB->sql_regex_supported()) {
+            if (substr($searchterm, 0, 1) == '-') {
+                $NOT = true;
+            }
+            $searchterm = trim($searchterm, '+-');
+        }
+
+        if (substr($searchterm,0,1) == "+") {
+            $searchterm = substr($searchterm,1);
+            $searchterm = preg_quote($searchterm, '|');
+            $searchcond[] = "m.fullmessage $REGEXP :ss$i";
+            $params['ss'.$i] = "(^|[^a-zA-Z0-9])$searchterm([^a-zA-Z0-9]|$)";
+
+        } else if (substr($searchterm,0,1) == "-") {
+            $searchterm = substr($searchterm,1);
+            $searchterm = preg_quote($searchterm, '|');
+            $searchcond[] = "m.fullmessage $NOTREGEXP :ss$i";
+            $params['ss'.$i] = "(^|[^a-zA-Z0-9])$searchterm([^a-zA-Z0-9]|$)";
+
+        } else {
+            $searchcond[] = $DB->sql_like("m.fullmessage", ":ss$i", false, true, $NOT);
+            $params['ss'.$i] = "%$searchterm%";
+        }
+    }
+
+    if (empty($searchcond)) {
+        $searchcond = " ".$DB->sql_like('m.fullmessage', ':ss1', false);
+        $params['ss1'] = "%";
+    } else {
+        $searchcond = implode(" AND ", $searchcond);
+    }
+
+    // There are several possibilities
+    // 1. courseid = SITEID : The admin is searching messages by all users
+    // 2. courseid = ??     : A teacher is searching messages by users in
+    //                        one of their courses - currently disabled
+    // 3. courseid = none   : User is searching their own messages;
+    //    a.  Messages from user
+    //    b.  Messages to user
+    //    c.  Messages to and from user
+
+    if ($fromme && $tome) {
+        $searchcond .= " AND ((useridto = :useridto AND timeusertodeleted = 0) OR
+            (useridfrom = :useridfrom AND timeuserfromdeleted = 0))";
+        $params['useridto'] = $userid;
+        $params['useridfrom'] = $userid;
+    } else if ($fromme) {
+        $searchcond .= " AND (useridfrom = :useridfrom AND timeuserfromdeleted = 0)";
+        $params['useridfrom'] = $userid;
+    } else if ($tome) {
+        $searchcond .= " AND (useridto = :useridto AND timeusertodeleted = 0)";
+        $params['useridto'] = $userid;
+    }
+    if ($courseid == SITEID) { // Admin is searching all messages.
+        $m_read   = $DB->get_records_sql("SELECT m.id, m.useridto, m.useridfrom, m.smallmessage, m.fullmessage, m.timecreated
+                                            FROM {message_read} m
+                                           WHERE $searchcond", $params, 0, MESSAGE_SEARCH_MAX_RESULTS);
+        $m_unread = $DB->get_records_sql("SELECT m.id, m.useridto, m.useridfrom, m.smallmessage, m.fullmessage, m.timecreated
+                                            FROM {message} m
+                                           WHERE $searchcond", $params, 0, MESSAGE_SEARCH_MAX_RESULTS);
+
+    } else if ($courseid !== 'none') {
+        // This has not been implemented due to security concerns.
+        $m_read   = array();
+        $m_unread = array();
+
+    } else {
+
+        if ($fromme and $tome) {
+            $searchcond .= " AND (m.useridfrom=:userid1 OR m.useridto=:userid2)";
+            $params['userid1'] = $userid;
+            $params['userid2'] = $userid;
+
+        } else if ($fromme) {
+            $searchcond .= " AND m.useridfrom=:userid";
+            $params['userid'] = $userid;
+
+        } else if ($tome) {
+            $searchcond .= " AND m.useridto=:userid";
+            $params['userid'] = $userid;
+        }
+
+        $m_read   = $DB->get_records_sql("SELECT m.id, m.useridto, m.useridfrom, m.smallmessage, m.fullmessage, m.timecreated
+                                            FROM {message_read} m
+                                           WHERE $searchcond", $params, 0, MESSAGE_SEARCH_MAX_RESULTS);
+        $m_unread = $DB->get_records_sql("SELECT m.id, m.useridto, m.useridfrom, m.smallmessage, m.fullmessage, m.timecreated
+                                            FROM {message} m
+                                           WHERE $searchcond", $params, 0, MESSAGE_SEARCH_MAX_RESULTS);
+
+    }
+
+    /// The keys may be duplicated in $m_read and $m_unread so we can't
+    /// do a simple concatenation
+    $messages = array();
+    foreach ($m_read as $m) {
+        $messages[] = $m;
+    }
+    foreach ($m_unread as $m) {
+        $messages[] = $m;
+    }
+
+    return (empty($messages)) ? false : $messages;
+}
+
+/**
+ * Given a message object that we already know has a long message
+ * this function truncates the message nicely to the first
+ * sane place between $CFG->forum_longpost and $CFG->forum_shortpost
+ *
+ * @deprecated since Moodle 3.2
+ * @param string $message the message
+ * @param int $minlength the minimum length to trim the message to
+ * @return string the shortened message
+ */
+function message_shorten_message($message, $minlength = 0) {
+    debugging('message_shorten_message() is deprecated and is no longer used.', DEBUG_DEVELOPER);
+
+    $i = 0;
+    $tag = false;
+    $length = strlen($message);
+    $count = 0;
+    $stopzone = false;
+    $truncate = 0;
+    if ($minlength == 0) $minlength = MESSAGE_SHORTLENGTH;
+
+
+    for ($i=0; $i<$length; $i++) {
+        $char = $message[$i];
+
+        switch ($char) {
+            case "<":
+                $tag = true;
+                break;
+            case ">":
+                $tag = false;
+                break;
+            default:
+                if (!$tag) {
+                    if ($stopzone) {
+                        if ($char == '.' or $char == ' ') {
+                            $truncate = $i+1;
+                            break 2;
+                        }
+                    }
+                    $count++;
+                }
+                break;
+        }
+        if (!$stopzone) {
+            if ($count > $minlength) {
+                $stopzone = true;
+            }
+        }
+    }
+
+    if (!$truncate) {
+        $truncate = $i;
+    }
+
+    return substr($message, 0, $truncate);
+}
+
+/**
+ * Given a string and an array of keywords, this function looks
+ * for the first keyword in the string, and then chops out a
+ * small section from the text that shows that word in context.
+ *
+ * @deprecated since Moodle 3.2
+ * @param string $message the text to search
+ * @param array $keywords array of keywords to find
+ */
+function message_get_fragment($message, $keywords) {
+    debugging('message_get_fragment() is deprecated and is no longer used.', DEBUG_DEVELOPER);
+
+    $fullsize = 160;
+    $halfsize = (int)($fullsize/2);
+
+    $message = strip_tags($message);
+
+    foreach ($keywords as $keyword) {  // Just get the first one
+        if ($keyword !== '') {
+            break;
+        }
+    }
+    if (empty($keyword)) {   // None found, so just return start of message
+        return message_shorten_message($message, 30);
+    }
+
+    $leadin = $leadout = '';
+
+/// Find the start of the fragment
+    $start = 0;
+    $length = strlen($message);
+
+    $pos = strpos($message, $keyword);
+    if ($pos > $halfsize) {
+        $start = $pos - $halfsize;
+        $leadin = '...';
+    }
+/// Find the end of the fragment
+    $end = $start + $fullsize;
+    if ($end > $length) {
+        $end = $length;
+    } else {
+        $leadout = '...';
+    }
+
+/// Pull out the fragment and format it
+
+    $fragment = substr($message, $start, $end - $start);
+    $fragment = $leadin.highlight(implode(' ',$keywords), $fragment).$leadout;
+    return $fragment;
+}
+
+/**
+ * Retrieve the messages between two users
+ *
+ * @deprecated since Moodle 3.2
+ * @param object $user1 the current user
+ * @param object $user2 the other user
+ * @param int $limitnum the maximum number of messages to retrieve
+ * @param bool $viewingnewmessages are we currently viewing new messages?
+ */
+function message_get_history($user1, $user2, $limitnum=0, $viewingnewmessages=false) {
+    debugging('message_get_history() is deprecated and is no longer used.', DEBUG_DEVELOPER);
+
+    global $DB, $CFG;
+
+    $messages = array();
+
+    //we want messages sorted oldest to newest but if getting a subset of messages we need to sort
+    //desc to get the last $limitnum messages then flip the order in php
+    $sort = 'asc';
+    if ($limitnum>0) {
+        $sort = 'desc';
+    }
+
+    $notificationswhere = null;
+    //we have just moved new messages to read. If theyre here to see new messages dont hide notifications
+    if (!$viewingnewmessages && $CFG->messaginghidereadnotifications) {
+        $notificationswhere = 'AND notification=0';
+    }
+
+    //prevent notifications of your own actions appearing in your own message history
+    $ownnotificationwhere = ' AND NOT (useridfrom=? AND notification=1)';
+
+    $sql = "((useridto = ? AND useridfrom = ? AND timeusertodeleted = 0) OR
+        (useridto = ? AND useridfrom = ? AND timeuserfromdeleted = 0))";
+    if ($messages_read = $DB->get_records_select('message_read', $sql . $notificationswhere . $ownnotificationwhere,
+        array($user1->id, $user2->id, $user2->id, $user1->id, $user1->id),
+        "timecreated $sort", '*', 0, $limitnum)) {
+        foreach ($messages_read as $message) {
+            $messages[] = $message;
+        }
+    }
+    if ($messages_new = $DB->get_records_select('message', $sql . $ownnotificationwhere,
+        array($user1->id, $user2->id, $user2->id, $user1->id, $user1->id),
+        "timecreated $sort", '*', 0, $limitnum)) {
+        foreach ($messages_new as $message) {
+            $messages[] = $message;
+        }
+    }
+
+    $result = core_collator::asort_objects_by_property($messages, 'timecreated', core_collator::SORT_NUMERIC);
+
+    //if we only want the last $limitnum messages
+    $messagecount = count($messages);
+    if ($limitnum > 0 && $messagecount > $limitnum) {
+        $messages = array_slice($messages, $messagecount - $limitnum, $limitnum, true);
+    }
+
+    return $messages;
+}
+
+/**
+ * Constructs the add/remove contact link to display next to other users
+ *
+ * @deprecated since Moodle 3.2
+ * @param bool $incontactlist is the user a contact
+ * @param bool $isblocked is the user blocked
+ * @param stdClass $contact contact object
+ * @param string $script the URL to send the user to when the link is clicked. If null, the current page.
+ * @param bool $text include text next to the icons?
+ * @param bool $icon include a graphical icon?
+ * @return string
+ */
+function message_get_contact_add_remove_link($incontactlist, $isblocked, $contact, $script=null, $text=false, $icon=true) {
+    debugging('message_get_contact_add_remove_link() is deprecated and is no longer used.', DEBUG_DEVELOPER);
+
+    $strcontact = '';
+
+    if($incontactlist){
+        $strcontact = message_contact_link($contact->id, 'remove', true, $script, $text, $icon);
+    } else if ($isblocked) {
+        $strcontact = message_contact_link($contact->id, 'add', true, $script, $text, $icon);
+    } else{
+        $strcontact = message_contact_link($contact->id, 'add', true, $script, $text, $icon);
+    }
+
+    return $strcontact;
+}
+
+/**
+ * Constructs the block contact link to display next to other users
+ *
+ * @deprecated since Moodle 3.2
+ * @param bool $incontactlist is the user a contact?
+ * @param bool $isblocked is the user blocked?
+ * @param stdClass $contact contact object
+ * @param string $script the URL to send the user to when the link is clicked. If null, the current page.
+ * @param bool $text include text next to the icons?
+ * @param bool $icon include a graphical icon?
+ * @return string
+ */
+function message_get_contact_block_link($incontactlist, $isblocked, $contact, $script=null, $text=false, $icon=true) {
+    debugging('message_get_contact_block_link() is deprecated and is no longer used.', DEBUG_DEVELOPER);
+
+    $strblock   = '';
+
+    //commented out to allow the user to block a contact without having to remove them first
+    /*if ($incontactlist) {
+        //$strblock = '';
+    } else*/
+    if ($isblocked) {
+        $strblock   = message_contact_link($contact->id, 'unblock', true, $script, $text, $icon);
+    } else{
+        $strblock   = message_contact_link($contact->id, 'block', true, $script, $text, $icon);
+    }
+
+    return $strblock;
+}
+
+/**
+ * marks ALL messages being sent from $fromuserid to $touserid as read
+ *
+ * @deprecated since Moodle 3.2
+ * @param int $touserid the id of the message recipient
+ * @param int $fromuserid the id of the message sender
+ * @return void
+ */
+function message_mark_messages_read($touserid, $fromuserid) {
+    debugging('message_mark_messages_read() is deprecated and is no longer used, please use
+        \core_message\api::mark_all_read_for_user() instead.', DEBUG_DEVELOPER);
+
+    \core_message\api::mark_all_read_for_user($touserid, $fromuserid);
+}
+
+/**
+ * Return a list of page types
+ *
+ * @deprecated since Moodle 3.2
+ * @param string $pagetype current page type
+ * @param stdClass $parentcontext Block's parent context
+ * @param stdClass $currentcontext Current context of block
+ */
+function message_page_type_list($pagetype, $parentcontext, $currentcontext) {
+    debugging('message_page_type_list() is deprecated and is no longer used.', DEBUG_DEVELOPER);
+
+    return array('messages-*'=>get_string('page-message-x', 'message'));
+}
+
+/**
+ * Determines if a user is permitted to send another user a private message.
+ * If no sender is provided then it defaults to the logged in user.
+ *
+ * @deprecated since Moodle 3.2
+ * @param object $recipient User object.
+ * @param object $sender User object.
+ * @return bool true if user is permitted, false otherwise.
+ */
+function message_can_post_message($recipient, $sender = null) {
+    debugging('message_can_post_message() is deprecated and is no longer used, please use
+        \core_message\api::can_post_message() instead.', DEBUG_DEVELOPER);
+
+    return \core_message\api::can_post_message($recipient, $sender);
+}
+
+/**
+ * Checks if the recipient is allowing messages from users that aren't a
+ * contact. If not then it checks to make sure the sender is in the
+ * recipient's contacts.
+ *
+ * @deprecated since Moodle 3.2
+ * @param object $recipient User object.
+ * @param object $sender User object.
+ * @return bool true if $sender is blocked, false otherwise.
+ */
+function message_is_user_non_contact_blocked($recipient, $sender = null) {
+    debugging('message_is_user_non_contact_blocked() is deprecated and is no longer used, please use
+        \core_message\api::is_user_non_contact_blocked() instead.', DEBUG_DEVELOPER);
+
+    return \core_message\api::is_user_non_contact_blocked($recipient, $sender);
+}
+
+/**
+ * Checks if the recipient has specifically blocked the sending user.
+ *
+ * Note: This function will always return false if the sender has the
+ * readallmessages capability at the system context level.
+ *
+ * @deprecated since Moodle 3.2
+ * @param object $recipient User object.
+ * @param object $sender User object.
+ * @return bool true if $sender is blocked, false otherwise.
+ */
+function message_is_user_blocked($recipient, $sender = null) {
+    debugging('message_is_user_blocked() is deprecated and is no longer used, please use
+        \core_message\api::is_user_blocked() instead.', DEBUG_DEVELOPER);
+
+    $senderid = null;
+    if ($sender !== null && isset($sender->id)) {
+        $senderid = $sender->id;
+    }
+    return \core_message\api::is_user_blocked($recipient->id, $senderid);
+}
+
+/**
+ * Display logs.
+ *
+ * @deprecated since 3.2
+ */
+function print_log($course, $user=0, $date=0, $order="l.time ASC", $page=0, $perpage=100,
+                   $url="", $modname="", $modid=0, $modaction="", $groupid=0) {
+    debugging(__FUNCTION__ . '() is deprecated. Please use the report_log framework instead.', DEBUG_DEVELOPER);
+
+    global $CFG, $DB, $OUTPUT;
+
+    if (!$logs = build_logs_array($course, $user, $date, $order, $page*$perpage, $perpage,
+                       $modname, $modid, $modaction, $groupid)) {
+        echo $OUTPUT->notification("No logs found!");
+        echo $OUTPUT->footer();
+        exit;
+    }
+
+    $courses = array();
+
+    if ($course->id == SITEID) {
+        $courses[0] = '';
+        if ($ccc = get_courses('all', 'c.id ASC', 'c.id,c.shortname')) {
+            foreach ($ccc as $cc) {
+                $courses[$cc->id] = $cc->shortname;
+            }
+        }
+    } else {
+        $courses[$course->id] = $course->shortname;
+    }
+
+    $totalcount = $logs['totalcount'];
+    $ldcache = array();
+
+    $strftimedatetime = get_string("strftimedatetime");
+
+    echo "<div class=\"info\">\n";
+    print_string("displayingrecords", "", $totalcount);
+    echo "</div>\n";
+
+    echo $OUTPUT->paging_bar($totalcount, $page, $perpage, "$url&perpage=$perpage");
+
+    $table = new html_table();
+    $table->classes = array('logtable','generaltable');
+    $table->align = array('right', 'left', 'left');
+    $table->head = array(
+        get_string('time'),
+        get_string('ip_address'),
+        get_string('fullnameuser'),
+        get_string('action'),
+        get_string('info')
+    );
+    $table->data = array();
+
+    if ($course->id == SITEID) {
+        array_unshift($table->align, 'left');
+        array_unshift($table->head, get_string('course'));
+    }
+
+    // Make sure that the logs array is an array, even it is empty, to avoid warnings from the foreach.
+    if (empty($logs['logs'])) {
+        $logs['logs'] = array();
+    }
+
+    foreach ($logs['logs'] as $log) {
+
+        if (isset($ldcache[$log->module][$log->action])) {
+            $ld = $ldcache[$log->module][$log->action];
+        } else {
+            $ld = $DB->get_record('log_display', array('module'=>$log->module, 'action'=>$log->action));
+            $ldcache[$log->module][$log->action] = $ld;
+        }
+        if ($ld && is_numeric($log->info)) {
+            // ugly hack to make sure fullname is shown correctly
+            if ($ld->mtable == 'user' && $ld->field == $DB->sql_concat('firstname', "' '" , 'lastname')) {
+                $log->info = fullname($DB->get_record($ld->mtable, array('id'=>$log->info)), true);
+            } else {
+                $log->info = $DB->get_field($ld->mtable, $ld->field, array('id'=>$log->info));
+            }
+        }
+
+        //Filter log->info
+        $log->info = format_string($log->info);
+
+        // If $log->url has been trimmed short by the db size restriction
+        // code in add_to_log, keep a note so we don't add a link to a broken url
+        $brokenurl=(core_text::strlen($log->url)==100 && core_text::substr($log->url,97)=='...');
+
+        $row = array();
+        if ($course->id == SITEID) {
+            if (empty($log->course)) {
+                $row[] = get_string('site');
+            } else {
+                $row[] = "<a href=\"{$CFG->wwwroot}/course/view.php?id={$log->course}\">". format_string($courses[$log->course])."</a>";
+            }
+        }
+
+        $row[] = userdate($log->time, '%a').' '.userdate($log->time, $strftimedatetime);
+
+        $link = new moodle_url("/iplookup/index.php?ip=$log->ip&user=$log->userid");
+        $row[] = $OUTPUT->action_link($link, $log->ip, new popup_action('click', $link, 'iplookup', array('height' => 440, 'width' => 700)));
+
+        $row[] = html_writer::link(new moodle_url("/user/view.php?id={$log->userid}&course={$log->course}"), fullname($log, has_capability('moodle/site:viewfullnames', context_course::instance($course->id))));
+
+        $displayaction="$log->module $log->action";
+        if ($brokenurl) {
+            $row[] = $displayaction;
+        } else {
+            $link = make_log_url($log->module,$log->url);
+            $row[] = $OUTPUT->action_link($link, $displayaction, new popup_action('click', $link, 'fromloglive'), array('height' => 440, 'width' => 700));
+        }
+        $row[] = $log->info;
+        $table->data[] = $row;
+    }
+
+    echo html_writer::table($table);
+    echo $OUTPUT->paging_bar($totalcount, $page, $perpage, "$url&perpage=$perpage");
+}
+
+/**
+ * Display MNET logs.
+ *
+ * @deprecated since 3.2
+ */
+function print_mnet_log($hostid, $course, $user=0, $date=0, $order="l.time ASC", $page=0, $perpage=100,
+                   $url="", $modname="", $modid=0, $modaction="", $groupid=0) {
+    debugging(__FUNCTION__ . '() is deprecated. Please use the report_log framework instead.', DEBUG_DEVELOPER);
+
+    global $CFG, $DB, $OUTPUT;
+
+    if (!$logs = build_mnet_logs_array($hostid, $course, $user, $date, $order, $page*$perpage, $perpage,
+                       $modname, $modid, $modaction, $groupid)) {
+        echo $OUTPUT->notification("No logs found!");
+        echo $OUTPUT->footer();
+        exit;
+    }
+
+    if ($course->id == SITEID) {
+        $courses[0] = '';
+        if ($ccc = get_courses('all', 'c.id ASC', 'c.id,c.shortname,c.visible')) {
+            foreach ($ccc as $cc) {
+                $courses[$cc->id] = $cc->shortname;
+            }
+        }
+    }
+
+    $totalcount = $logs['totalcount'];
+    $ldcache = array();
+
+    $strftimedatetime = get_string("strftimedatetime");
+
+    echo "<div class=\"info\">\n";
+    print_string("displayingrecords", "", $totalcount);
+    echo "</div>\n";
+
+    echo $OUTPUT->paging_bar($totalcount, $page, $perpage, "$url&perpage=$perpage");
+
+    echo "<table class=\"logtable\" cellpadding=\"3\" cellspacing=\"0\">\n";
+    echo "<tr>";
+    if ($course->id == SITEID) {
+        echo "<th class=\"c0 header\">".get_string('course')."</th>\n";
+    }
+    echo "<th class=\"c1 header\">".get_string('time')."</th>\n";
+    echo "<th class=\"c2 header\">".get_string('ip_address')."</th>\n";
+    echo "<th class=\"c3 header\">".get_string('fullnameuser')."</th>\n";
+    echo "<th class=\"c4 header\">".get_string('action')."</th>\n";
+    echo "<th class=\"c5 header\">".get_string('info')."</th>\n";
+    echo "</tr>\n";
+
+    if (empty($logs['logs'])) {
+        echo "</table>\n";
+        return;
+    }
+
+    $row = 1;
+    foreach ($logs['logs'] as $log) {
+
+        $log->info = $log->coursename;
+        $row = ($row + 1) % 2;
+
+        if (isset($ldcache[$log->module][$log->action])) {
+            $ld = $ldcache[$log->module][$log->action];
+        } else {
+            $ld = $DB->get_record('log_display', array('module'=>$log->module, 'action'=>$log->action));
+            $ldcache[$log->module][$log->action] = $ld;
+        }
+        if (0 && $ld && !empty($log->info)) {
+            // ugly hack to make sure fullname is shown correctly
+            if (($ld->mtable == 'user') and ($ld->field == $DB->sql_concat('firstname', "' '" , 'lastname'))) {
+                $log->info = fullname($DB->get_record($ld->mtable, array('id'=>$log->info)), true);
+            } else {
+                $log->info = $DB->get_field($ld->mtable, $ld->field, array('id'=>$log->info));
+            }
+        }
+
+        //Filter log->info
+        $log->info = format_string($log->info);
+
+        echo '<tr class="r'.$row.'">';
+        if ($course->id == SITEID) {
+            $courseshortname = format_string($courses[$log->course], true, array('context' => context_course::instance(SITEID)));
+            echo "<td class=\"r$row c0\" >\n";
+            echo "    <a href=\"{$CFG->wwwroot}/course/view.php?id={$log->course}\">".$courseshortname."</a>\n";
+            echo "</td>\n";
+        }
+        echo "<td class=\"r$row c1\" align=\"right\">".userdate($log->time, '%a').
+             ' '.userdate($log->time, $strftimedatetime)."</td>\n";
+        echo "<td class=\"r$row c2\" >\n";
+        $link = new moodle_url("/iplookup/index.php?ip=$log->ip&user=$log->userid");
+        echo $OUTPUT->action_link($link, $log->ip, new popup_action('click', $link, 'iplookup', array('height' => 400, 'width' => 700)));
+        echo "</td>\n";
+        $fullname = fullname($log, has_capability('moodle/site:viewfullnames', context_course::instance($course->id)));
+        echo "<td class=\"r$row c3\" >\n";
+        echo "    <a href=\"$CFG->wwwroot/user/view.php?id={$log->userid}\">$fullname</a>\n";
+        echo "</td>\n";
+        echo "<td class=\"r$row c4\">\n";
+        echo $log->action .': '.$log->module;
+        echo "</td>\n";
+        echo "<td class=\"r$row c5\">{$log->info}</td>\n";
+        echo "</tr>\n";
+    }
+    echo "</table>\n";
+
+    echo $OUTPUT->paging_bar($totalcount, $page, $perpage, "$url&perpage=$perpage");
+}
+
+/**
+ * Display logs in CSV format.
+ *
+ * @deprecated since 3.2
+ */
+function print_log_csv($course, $user, $date, $order='l.time DESC', $modname,
+                        $modid, $modaction, $groupid) {
+    debugging(__FUNCTION__ . '() is deprecated. Please use the report_log framework instead.', DEBUG_DEVELOPER);
+
+    global $DB, $CFG;
+
+    require_once($CFG->libdir . '/csvlib.class.php');
+
+    $csvexporter = new csv_export_writer('tab');
+
+    $header = array();
+    $header[] = get_string('course');
+    $header[] = get_string('time');
+    $header[] = get_string('ip_address');
+    $header[] = get_string('fullnameuser');
+    $header[] = get_string('action');
+    $header[] = get_string('info');
+
+    if (!$logs = build_logs_array($course, $user, $date, $order, '', '',
+                       $modname, $modid, $modaction, $groupid)) {
+        return false;
+    }
+
+    $courses = array();
+
+    if ($course->id == SITEID) {
+        $courses[0] = '';
+        if ($ccc = get_courses('all', 'c.id ASC', 'c.id,c.shortname')) {
+            foreach ($ccc as $cc) {
+                $courses[$cc->id] = $cc->shortname;
+            }
+        }
+    } else {
+        $courses[$course->id] = $course->shortname;
+    }
+
+    $count=0;
+    $ldcache = array();
+    $tt = getdate(time());
+    $today = mktime (0, 0, 0, $tt["mon"], $tt["mday"], $tt["year"]);
+
+    $strftimedatetime = get_string("strftimedatetime");
+
+    $csvexporter->set_filename('logs', '.txt');
+    $title = array(get_string('savedat').userdate(time(), $strftimedatetime));
+    $csvexporter->add_data($title);
+    $csvexporter->add_data($header);
+
+    if (empty($logs['logs'])) {
+        return true;
+    }
+
+    foreach ($logs['logs'] as $log) {
+        if (isset($ldcache[$log->module][$log->action])) {
+            $ld = $ldcache[$log->module][$log->action];
+        } else {
+            $ld = $DB->get_record('log_display', array('module'=>$log->module, 'action'=>$log->action));
+            $ldcache[$log->module][$log->action] = $ld;
+        }
+        if ($ld && is_numeric($log->info)) {
+            // ugly hack to make sure fullname is shown correctly
+            if (($ld->mtable == 'user') and ($ld->field ==  $DB->sql_concat('firstname', "' '" , 'lastname'))) {
+                $log->info = fullname($DB->get_record($ld->mtable, array('id'=>$log->info)), true);
+            } else {
+                $log->info = $DB->get_field($ld->mtable, $ld->field, array('id'=>$log->info));
+            }
+        }
+
+        //Filter log->info
+        $log->info = format_string($log->info);
+        $log->info = strip_tags(urldecode($log->info));    // Some XSS protection
+
+        $coursecontext = context_course::instance($course->id);
+        $firstField = format_string($courses[$log->course], true, array('context' => $coursecontext));
+        $fullname = fullname($log, has_capability('moodle/site:viewfullnames', $coursecontext));
+        $actionurl = $CFG->wwwroot. make_log_url($log->module,$log->url);
+        $row = array($firstField, userdate($log->time, $strftimedatetime), $log->ip, $fullname, $log->module.' '.$log->action.' ('.$actionurl.')', $log->info);
+        $csvexporter->add_data($row);
+    }
+    $csvexporter->download_file();
+    return true;
+}
+
+/**
+ * Display logs in XLS format.
+ *
+ * @deprecated since 3.2
+ */
+function print_log_xls($course, $user, $date, $order='l.time DESC', $modname,
+                        $modid, $modaction, $groupid) {
+    debugging(__FUNCTION__ . '() is deprecated. Please use the report_log framework instead.', DEBUG_DEVELOPER);
+
+    global $CFG, $DB;
+
+    require_once("$CFG->libdir/excellib.class.php");
+
+    if (!$logs = build_logs_array($course, $user, $date, $order, '', '',
+                       $modname, $modid, $modaction, $groupid)) {
+        return false;
+    }
+
+    $courses = array();
+
+    if ($course->id == SITEID) {
+        $courses[0] = '';
+        if ($ccc = get_courses('all', 'c.id ASC', 'c.id,c.shortname')) {
+            foreach ($ccc as $cc) {
+                $courses[$cc->id] = $cc->shortname;
+            }
+        }
+    } else {
+        $courses[$course->id] = $course->shortname;
+    }
+
+    $count=0;
+    $ldcache = array();
+    $tt = getdate(time());
+    $today = mktime (0, 0, 0, $tt["mon"], $tt["mday"], $tt["year"]);
+
+    $strftimedatetime = get_string("strftimedatetime");
+
+    $nroPages = ceil(count($logs)/(EXCELROWS-FIRSTUSEDEXCELROW+1));
+    $filename = 'logs_'.userdate(time(),get_string('backupnameformat', 'langconfig'),99,false);
+    $filename .= '.xls';
+
+    $workbook = new MoodleExcelWorkbook('-');
+    $workbook->send($filename);
+
+    $worksheet = array();
+    $headers = array(get_string('course'), get_string('time'), get_string('ip_address'),
+                        get_string('fullnameuser'),    get_string('action'), get_string('info'));
+
+    // Creating worksheets
+    for ($wsnumber = 1; $wsnumber <= $nroPages; $wsnumber++) {
+        $sheettitle = get_string('logs').' '.$wsnumber.'-'.$nroPages;
+        $worksheet[$wsnumber] = $workbook->add_worksheet($sheettitle);
+        $worksheet[$wsnumber]->set_column(1, 1, 30);
+        $worksheet[$wsnumber]->write_string(0, 0, get_string('savedat').
+                                    userdate(time(), $strftimedatetime));
+        $col = 0;
+        foreach ($headers as $item) {
+            $worksheet[$wsnumber]->write(FIRSTUSEDEXCELROW-1,$col,$item,'');
+            $col++;
+        }
+    }
+
+    if (empty($logs['logs'])) {
+        $workbook->close();
+        return true;
+    }
+
+    $formatDate =& $workbook->add_format();
+    $formatDate->set_num_format(get_string('log_excel_date_format'));
+
+    $row = FIRSTUSEDEXCELROW;
+    $wsnumber = 1;
+    $myxls =& $worksheet[$wsnumber];
+    foreach ($logs['logs'] as $log) {
+        if (isset($ldcache[$log->module][$log->action])) {
+            $ld = $ldcache[$log->module][$log->action];
+        } else {
+            $ld = $DB->get_record('log_display', array('module'=>$log->module, 'action'=>$log->action));
+            $ldcache[$log->module][$log->action] = $ld;
+        }
+        if ($ld && is_numeric($log->info)) {
+            // ugly hack to make sure fullname is shown correctly
+            if (($ld->mtable == 'user') and ($ld->field == $DB->sql_concat('firstname', "' '" , 'lastname'))) {
+                $log->info = fullname($DB->get_record($ld->mtable, array('id'=>$log->info)), true);
+            } else {
+                $log->info = $DB->get_field($ld->mtable, $ld->field, array('id'=>$log->info));
+            }
+        }
+
+        // Filter log->info
+        $log->info = format_string($log->info);
+        $log->info = strip_tags(urldecode($log->info));  // Some XSS protection
+
+        if ($nroPages>1) {
+            if ($row > EXCELROWS) {
+                $wsnumber++;
+                $myxls =& $worksheet[$wsnumber];
+                $row = FIRSTUSEDEXCELROW;
+            }
+        }
+
+        $coursecontext = context_course::instance($course->id);
+
+        $myxls->write($row, 0, format_string($courses[$log->course], true, array('context' => $coursecontext)), '');
+        $myxls->write_date($row, 1, $log->time, $formatDate); // write_date() does conversion/timezone support. MDL-14934
+        $myxls->write($row, 2, $log->ip, '');
+        $fullname = fullname($log, has_capability('moodle/site:viewfullnames', $coursecontext));
+        $myxls->write($row, 3, $fullname, '');
+        $actionurl = $CFG->wwwroot. make_log_url($log->module,$log->url);
+        $myxls->write($row, 4, $log->module.' '.$log->action.' ('.$actionurl.')', '');
+        $myxls->write($row, 5, $log->info, '');
+
+        $row++;
+    }
+
+    $workbook->close();
+    return true;
+}
+
+/**
+ * Display logs in ODS format.
+ *
+ * @deprecated since 3.2
+ */
+function print_log_ods($course, $user, $date, $order='l.time DESC', $modname,
+                        $modid, $modaction, $groupid) {
+    debugging(__FUNCTION__ . '() is deprecated. Please use the report_log framework instead.', DEBUG_DEVELOPER);
+
+    global $CFG, $DB;
+
+    require_once("$CFG->libdir/odslib.class.php");
+
+    if (!$logs = build_logs_array($course, $user, $date, $order, '', '',
+                       $modname, $modid, $modaction, $groupid)) {
+        return false;
+    }
+
+    $courses = array();
+
+    if ($course->id == SITEID) {
+        $courses[0] = '';
+        if ($ccc = get_courses('all', 'c.id ASC', 'c.id,c.shortname')) {
+            foreach ($ccc as $cc) {
+                $courses[$cc->id] = $cc->shortname;
+            }
+        }
+    } else {
+        $courses[$course->id] = $course->shortname;
+    }
+
+    $ldcache = array();
+
+    $strftimedatetime = get_string("strftimedatetime");
+
+    $nroPages = ceil(count($logs)/(EXCELROWS-FIRSTUSEDEXCELROW+1));
+    $filename = 'logs_'.userdate(time(),get_string('backupnameformat', 'langconfig'),99,false);
+    $filename .= '.ods';
+
+    $workbook = new MoodleODSWorkbook('-');
+    $workbook->send($filename);
+
+    $worksheet = array();
+    $headers = array(get_string('course'), get_string('time'), get_string('ip_address'),
+                        get_string('fullnameuser'),    get_string('action'), get_string('info'));
+
+    // Creating worksheets
+    for ($wsnumber = 1; $wsnumber <= $nroPages; $wsnumber++) {
+        $sheettitle = get_string('logs').' '.$wsnumber.'-'.$nroPages;
+        $worksheet[$wsnumber] = $workbook->add_worksheet($sheettitle);
+        $worksheet[$wsnumber]->set_column(1, 1, 30);
+        $worksheet[$wsnumber]->write_string(0, 0, get_string('savedat').
+                                    userdate(time(), $strftimedatetime));
+        $col = 0;
+        foreach ($headers as $item) {
+            $worksheet[$wsnumber]->write(FIRSTUSEDEXCELROW-1,$col,$item,'');
+            $col++;
+        }
+    }
+
+    if (empty($logs['logs'])) {
+        $workbook->close();
+        return true;
+    }
+
+    $formatDate =& $workbook->add_format();
+    $formatDate->set_num_format(get_string('log_excel_date_format'));
+
+    $row = FIRSTUSEDEXCELROW;
+    $wsnumber = 1;
+    $myxls =& $worksheet[$wsnumber];
+    foreach ($logs['logs'] as $log) {
+        if (isset($ldcache[$log->module][$log->action])) {
+            $ld = $ldcache[$log->module][$log->action];
+        } else {
+            $ld = $DB->get_record('log_display', array('module'=>$log->module, 'action'=>$log->action));
+            $ldcache[$log->module][$log->action] = $ld;
+        }
+        if ($ld && is_numeric($log->info)) {
+            // ugly hack to make sure fullname is shown correctly
+            if (($ld->mtable == 'user') and ($ld->field == $DB->sql_concat('firstname', "' '" , 'lastname'))) {
+                $log->info = fullname($DB->get_record($ld->mtable, array('id'=>$log->info)), true);
+            } else {
+                $log->info = $DB->get_field($ld->mtable, $ld->field, array('id'=>$log->info));
+            }
+        }
+
+        // Filter log->info
+        $log->info = format_string($log->info);
+        $log->info = strip_tags(urldecode($log->info));  // Some XSS protection
+
+        if ($nroPages>1) {
+            if ($row > EXCELROWS) {
+                $wsnumber++;
+                $myxls =& $worksheet[$wsnumber];
+                $row = FIRSTUSEDEXCELROW;
+            }
+        }
+
+        $coursecontext = context_course::instance($course->id);
+
+        $myxls->write_string($row, 0, format_string($courses[$log->course], true, array('context' => $coursecontext)));
+        $myxls->write_date($row, 1, $log->time);
+        $myxls->write_string($row, 2, $log->ip);
+        $fullname = fullname($log, has_capability('moodle/site:viewfullnames', $coursecontext));
+        $myxls->write_string($row, 3, $fullname);
+        $actionurl = $CFG->wwwroot. make_log_url($log->module,$log->url);
+        $myxls->write_string($row, 4, $log->module.' '.$log->action.' ('.$actionurl.')');
+        $myxls->write_string($row, 5, $log->info);
+
+        $row++;
+    }
+
+    $workbook->close();
+    return true;
+}
+
+/**
+ * Build an array of logs.
+ *
+ * @deprecated since 3.2
+ */
+function build_logs_array($course, $user=0, $date=0, $order="l.time ASC", $limitfrom='', $limitnum='',
+                   $modname="", $modid=0, $modaction="", $groupid=0) {
+    global $DB, $SESSION, $USER;
+
+    debugging(__FUNCTION__ . '() is deprecated. Please use the report_log framework instead.', DEBUG_DEVELOPER);
+    // It is assumed that $date is the GMT time of midnight for that day,
+    // and so the next 86400 seconds worth of logs are printed.
+
+    // Setup for group handling.
+
+    // If the group mode is separate, and this user does not have editing privileges,
+    // then only the user's group can be viewed.
+    if ($course->groupmode == SEPARATEGROUPS and !has_capability('moodle/course:managegroups', context_course::instance($course->id))) {
+        if (isset($SESSION->currentgroup[$course->id])) {
+            $groupid =  $SESSION->currentgroup[$course->id];
+        } else {
+            $groupid = groups_get_all_groups($course->id, $USER->id);
+            if (is_array($groupid)) {
+                $groupid = array_shift(array_keys($groupid));
+                $SESSION->currentgroup[$course->id] = $groupid;
+            } else {
+                $groupid = 0;
+            }
+        }
+    }
+    // If this course doesn't have groups, no groupid can be specified.
+    else if (!$course->groupmode) {
+        $groupid = 0;
+    }
+
+    $joins = array();
+    $params = array();
+
+    if ($course->id != SITEID || $modid != 0) {
+        $joins[] = "l.course = :courseid";
+        $params['courseid'] = $course->id;
+    }
+
+    if ($modname) {
+        $joins[] = "l.module = :modname";
+        $params['modname'] = $modname;
+    }
+
+    if ('site_errors' === $modid) {
+        $joins[] = "( l.action='error' OR l.action='infected' )";
+    } else if ($modid) {
+        $joins[] = "l.cmid = :modid";
+        $params['modid'] = $modid;
+    }
+
+    if ($modaction) {
+        $firstletter = substr($modaction, 0, 1);
+        if ($firstletter == '-') {
+            $joins[] = $DB->sql_like('l.action', ':modaction', false, true, true);
+            $params['modaction'] = '%'.substr($modaction, 1).'%';
+        } else {
+            $joins[] = $DB->sql_like('l.action', ':modaction', false);
+            $params['modaction'] = '%'.$modaction.'%';
+        }
+    }
+
+
+    /// Getting all members of a group.
+    if ($groupid and !$user) {
+        if ($gusers = groups_get_members($groupid)) {
+            $gusers = array_keys($gusers);
+            $joins[] = 'l.userid IN (' . implode(',', $gusers) . ')';
+        } else {
+            $joins[] = 'l.userid = 0'; // No users in groups, so we want something that will always be false.
+        }
+    }
+    else if ($user) {
+        $joins[] = "l.userid = :userid";
+        $params['userid'] = $user;
+    }
+
+    if ($date) {
+        $enddate = $date + 86400;
+        $joins[] = "l.time > :date AND l.time < :enddate";
+        $params['date'] = $date;
+        $params['enddate'] = $enddate;
+    }
+
+    $selector = implode(' AND ', $joins);
+
+    $totalcount = 0;  // Initialise
+    $result = array();
+    $result['logs'] = get_logs($selector, $params, $order, $limitfrom, $limitnum, $totalcount);
+    $result['totalcount'] = $totalcount;
+    return $result;
+}
+
+/**
+ * Select all log records for a given course and user.
+ *
+ * @deprecated since 3.2
+ * @param int $userid The id of the user as found in the 'user' table.
+ * @param int $courseid The id of the course as found in the 'course' table.
+ * @param string $coursestart unix timestamp representing course start date and time.
+ * @return array
+ */
+function get_logs_usercourse($userid, $courseid, $coursestart) {
+    global $DB;
+
+    debugging(__FUNCTION__ . '() is deprecated. Please use the report_log framework instead.', DEBUG_DEVELOPER);
+
+    $params = array();
+
+    $courseselect = '';
+    if ($courseid) {
+        $courseselect = "AND course = :courseid";
+        $params['courseid'] = $courseid;
+    }
+    $params['userid'] = $userid;
+    // We have to sanitize this param ourselves here instead of relying on DB.
+    // Postgres complains if you use name parameter or column alias in GROUP BY.
+    // See MDL-27696 and 51c3e85 for details.
+    $coursestart = (int)$coursestart;
+
+    return $DB->get_records_sql("SELECT FLOOR((time - $coursestart)/". DAYSECS .") AS day, COUNT(*) AS num
+                                   FROM {log}
+                                  WHERE userid = :userid
+                                        AND time > $coursestart $courseselect
+                               GROUP BY FLOOR((time - $coursestart)/". DAYSECS .")", $params);
+}
+
+/**
+ * Select all log records for a given course, user, and day.
+ *
+ * @deprecated since 3.2
+ * @param int $userid The id of the user as found in the 'user' table.
+ * @param int $courseid The id of the course as found in the 'course' table.
+ * @param string $daystart unix timestamp of the start of the day for which the logs needs to be retrived
+ * @return array
+ */
+function get_logs_userday($userid, $courseid, $daystart) {
+    global $DB;
+
+    debugging(__FUNCTION__ . '() is deprecated. Please use the report_log framework instead.', DEBUG_DEVELOPER);
+
+    $params = array('userid'=>$userid);
+
+    $courseselect = '';
+    if ($courseid) {
+        $courseselect = "AND course = :courseid";
+        $params['courseid'] = $courseid;
+    }
+    // Note: unfortunately pg complains if you use name parameter or column alias in GROUP BY.
+    $daystart = (int) $daystart;
+
+    return $DB->get_records_sql("SELECT FLOOR((time - $daystart)/". HOURSECS .") AS hour, COUNT(*) AS num
+                                   FROM {log}
+                                  WHERE userid = :userid
+                                        AND time > $daystart $courseselect
+                               GROUP BY FLOOR((time - $daystart)/". HOURSECS .") ", $params);
+}
+
+/**
+ * Select all log records based on SQL criteria.
+ *
+ * @deprecated since 3.2
+ * @param string $select SQL select criteria
+ * @param array $params named sql type params
+ * @param string $order SQL order by clause to sort the records returned
+ * @param string $limitfrom return a subset of records, starting at this point (optional, required if $limitnum is set)
+ * @param int $limitnum return a subset comprising this many records (optional, required if $limitfrom is set)
+ * @param int $totalcount Passed in by reference.
+ * @return array
+ */
+function get_logs($select, array $params=null, $order='l.time DESC', $limitfrom='', $limitnum='', &$totalcount) {
+    global $DB;
+
+    debugging(__FUNCTION__ . '() is deprecated. Please use the report_log framework instead.', DEBUG_DEVELOPER);
+
+    if ($order) {
+        $order = "ORDER BY $order";
+    }
+
+    if ($select) {
+        $select = "WHERE $select";
+    }
+
+    $sql = "SELECT COUNT(*)
+              FROM {log} l
+           $select";
+
+    $totalcount = $DB->count_records_sql($sql, $params);
+    $allnames = get_all_user_name_fields(true, 'u');
+    $sql = "SELECT l.*, $allnames, u.picture
+              FROM {log} l
+              LEFT JOIN {user} u ON l.userid = u.id
+           $select
+            $order";
+
+    return $DB->get_records_sql($sql, $params, $limitfrom, $limitnum);
+}
+
+/**
+ * Renders a hidden password field so that browsers won't incorrectly autofill password fields with the user's password.
+ *
+ * @deprecated since Moodle 3.2 MDL-53048
+ */
+function prevent_form_autofill_password() {
+    debugging('prevent_form_autofill_password has been deprecated and is no longer in use.', DEBUG_DEVELOPER);
+    return '';
+}
+
+/**
+ * Get the users recent conversations meaning all the people they've recently
+ * sent or received a message from plus the most recent message sent to or received from each other user
+ *
+ * @deprecated since Moodle 3.3 MDL-57370
+ * @param object|int $userorid the current user or user id
+ * @param int $limitfrom can be used for paging
+ * @param int $limitto can be used for paging
+ * @return array
+ */
+function message_get_recent_conversations($userorid, $limitfrom = 0, $limitto = 100) {
+    global $DB;
+
+    debugging('message_get_recent_conversations() is deprecated. Please use \core_message\api::get_conversations() instead.', DEBUG_DEVELOPER);
+
+    if (is_object($userorid)) {
+        $user = $userorid;
+    } else {
+        $userid = $userorid;
+        $user = new stdClass();
+        $user->id = $userid;
+    }
+
+    $userfields = user_picture::fields('otheruser', array('lastaccess'));
+
+    // This query retrieves the most recent message received from or sent to
+    // seach other user.
+    //
+    // If two messages have the same timecreated, we take the one with the
+    // larger id.
+    //
+    // There is a separate query for read and unread messages as they are stored
+    // in different tables. They were originally retrieved in one query but it
+    // was so large that it was difficult to be confident in its correctness.
+    $uniquefield = $DB->sql_concat('message.useridfrom', "'-'", 'message.useridto');
+    $sql = "SELECT $uniquefield, $userfields,
+                   message.id as mid, message.notification, message.useridfrom, message.useridto,
+                   message.smallmessage, message.fullmessage, message.fullmessagehtml,
+                   message.fullmessageformat, message.timecreated,
+                   contact.id as contactlistid, contact.blocked
+              FROM {message_read} message
+              JOIN (
+                        SELECT MAX(id) AS messageid,
+                               matchedmessage.useridto,
+                               matchedmessage.useridfrom
+                         FROM {message_read} matchedmessage
+                   INNER JOIN (
+                               SELECT MAX(recentmessages.timecreated) timecreated,
+                                      recentmessages.useridfrom,
+                                      recentmessages.useridto
+                                 FROM {message_read} recentmessages
+                                WHERE (
+                                      (recentmessages.useridfrom = :userid1 AND recentmessages.timeuserfromdeleted = 0) OR
+                                      (recentmessages.useridto = :userid2   AND recentmessages.timeusertodeleted = 0)
+                                      )
+                             GROUP BY recentmessages.useridfrom, recentmessages.useridto
+                              ) recent ON matchedmessage.useridto     = recent.useridto
+                           AND matchedmessage.useridfrom   = recent.useridfrom
+                           AND matchedmessage.timecreated  = recent.timecreated
+                           WHERE (
+                                 (matchedmessage.useridfrom = :userid6 AND matchedmessage.timeuserfromdeleted = 0) OR
+                                 (matchedmessage.useridto = :userid7   AND matchedmessage.timeusertodeleted = 0)
+                                 )
+                      GROUP BY matchedmessage.useridto, matchedmessage.useridfrom
+                   ) messagesubset ON messagesubset.messageid = message.id
+              JOIN {user} otheruser ON (message.useridfrom = :userid4 AND message.useridto = otheruser.id)
+                OR (message.useridto   = :userid5 AND message.useridfrom   = otheruser.id)
+         LEFT JOIN {message_contacts} contact ON contact.userid  = :userid3 AND contact.contactid = otheruser.id
+             WHERE otheruser.deleted = 0 AND message.notification = 0
+          ORDER BY message.timecreated DESC";
+    $params = array(
+        'userid1' => $user->id,
+        'userid2' => $user->id,
+        'userid3' => $user->id,
+        'userid4' => $user->id,
+        'userid5' => $user->id,
+        'userid6' => $user->id,
+        'userid7' => $user->id
+    );
+    $read = $DB->get_records_sql($sql, $params, $limitfrom, $limitto);
+
+    // We want to get the messages that have not been read. These are stored in the 'message' table. It is the
+    // exact same query as the one above, except for the table we are querying. So, simply replace references to
+    // the 'message_read' table with the 'message' table.
+    $sql = str_replace('{message_read}', '{message}', $sql);
+    $unread = $DB->get_records_sql($sql, $params, $limitfrom, $limitto);
+
+    $unreadcountssql = 'SELECT useridfrom, count(*) as count
+                          FROM {message}
+                         WHERE useridto = :userid
+                           AND timeusertodeleted = 0
+                           AND notification = 0
+                      GROUP BY useridfrom';
+    $unreadcounts = $DB->get_records_sql($unreadcountssql, array('userid' => $user->id));
+
+    // Union the 2 result sets together looking for the message with the most
+    // recent timecreated for each other user.
+    // $conversation->id (the array key) is the other user's ID.
+    $conversations = array();
+    $conversation_arrays = array($unread, $read);
+    foreach ($conversation_arrays as $conversation_array) {
+        foreach ($conversation_array as $conversation) {
+            // Only consider it unread if $user has unread messages.
+            if (isset($unreadcounts[$conversation->useridfrom])) {
+                $conversation->isread = 0;
+                $conversation->unreadcount = $unreadcounts[$conversation->useridfrom]->count;
+            } else {
+                $conversation->isread = 1;
+            }
+
+            if (!isset($conversations[$conversation->id])) {
+                $conversations[$conversation->id] = $conversation;
+            } else {
+                $current = $conversations[$conversation->id];
+                // We need to maintain the isread and unreadcount values from existing
+                // parts of the conversation if we're replacing it.
+                $conversation->isread = ($conversation->isread && $current->isread);
+                if (isset($current->unreadcount) && !isset($conversation->unreadcount)) {
+                    $conversation->unreadcount = $current->unreadcount;
+                }
+
+                if ($current->timecreated < $conversation->timecreated) {
+                    $conversations[$conversation->id] = $conversation;
+                } else if ($current->timecreated == $conversation->timecreated) {
+                    if ($current->mid < $conversation->mid) {
+                        $conversations[$conversation->id] = $conversation;
+                    }
+                }
+            }
+        }
+    }
+
+    // Sort the conversations by $conversation->timecreated, newest to oldest
+    // There may be multiple conversations with the same timecreated
+    // The conversations array contains both read and unread messages (different tables) so sorting by ID won't work
+    $result = core_collator::asort_objects_by_property($conversations, 'timecreated', core_collator::SORT_NUMERIC);
+    $conversations = array_reverse($conversations);
+
+    return $conversations;
+}
+
+/**
+ * Display calendar preference button.
+ *
+ * @param stdClass $course course object
+ * @deprecated since Moodle 3.2
+ * @return string return preference button in html
+ */
+function calendar_preferences_button(stdClass $course) {
+    debugging('This should no longer be used, the calendar preferences are now linked to the user preferences page.');
+
+    global $OUTPUT;
+
+    // Guests have no preferences.
+    if (!isloggedin() || isguestuser()) {
+        return '';
+    }
+
+    return $OUTPUT->single_button(new moodle_url('/user/calendar.php'), get_string("preferences", "calendar"));
+}
+
+/**
+ * Return the name of the weekday
+ *
+ * @deprecated since 3.3
+ * @todo The final deprecation of this function will take place in Moodle 3.7 - see MDL-57617.
+ * @param string $englishname
+ * @return string of the weekeday
+ */
+function calendar_wday_name($englishname) {
+    debugging(__FUNCTION__ . '() is deprecated and no longer used in core.', DEBUG_DEVELOPER);
+    return get_string(strtolower($englishname), 'calendar');
+}
+
+/**
+ * Get the upcoming event block.
+ *
+ * @deprecated since 3.3
+ * @todo The final deprecation of this function will take place in Moodle 3.7 - see MDL-57617.
+ * @param array $events list of events
+ * @param moodle_url|string $linkhref link to event referer
+ * @param boolean $showcourselink whether links to courses should be shown
+ * @return string|null $content html block content
+ */
+function calendar_get_block_upcoming($events, $linkhref = null, $showcourselink = false) {
+    global $CFG;
+
+    debugging(__FUNCTION__ . '() is deprecated, please use block_calendar_upcoming::get_upcoming_content() instead.',
+        DEBUG_DEVELOPER);
+
+    require_once($CFG->dirroot . '/blocks/moodleblock.class.php');
+    require_once($CFG->dirroot . '/blocks/calendar_upcoming/block_calendar_upcoming.php');
+    return block_calendar_upcoming::get_upcoming_content($events, $linkhref, $showcourselink);
+}
+
+/**
+ * Display month selector options.
+ *
+ * @deprecated since 3.3
+ * @todo The final deprecation of this function will take place in Moodle 3.7 - see MDL-57617.
+ * @param string $name for the select element
+ * @param string|array $selected options for select elements
+ */
+function calendar_print_month_selector($name, $selected) {
+    debugging(__FUNCTION__ . '() is deprecated and no longer used in core.', DEBUG_DEVELOPER);
+    $months = array();
+    for ($i = 1; $i <= 12; $i++) {
+        $months[$i] = userdate(gmmktime(12, 0, 0, $i, 15, 2000), '%B');
+    }
+    echo html_writer::label(get_string('months'), 'menu'. $name, false, array('class' => 'accesshide'));
+    echo html_writer::select($months, $name, $selected, false);
+}
+
+/**
+ * Update calendar subscriptions.
+ *
+ * @deprecated since 3.3
+ * @todo The final deprecation of this function will take place in Moodle 3.7 - see MDL-57617.
+ * @return bool
+ */
+function calendar_cron() {
+    debugging(__FUNCTION__ . '() is deprecated and should not be used. Please use the core\task\calendar_cron_task instead.',
+        DEBUG_DEVELOPER);
+
+    global $CFG, $DB;
+
+    require_once($CFG->dirroot . '/calendar/lib.php');
+    // In order to execute this we need bennu.
+    require_once($CFG->libdir.'/bennu/bennu.inc.php');
+
+    mtrace('Updating calendar subscriptions:');
+    cron_trace_time_and_memory();
+
+    $time = time();
+    $subscriptions = $DB->get_records_sql('SELECT * FROM {event_subscriptions} WHERE pollinterval > 0
+      AND lastupdated + pollinterval < ?', array($time));
+    foreach ($subscriptions as $sub) {
+        mtrace("Updating calendar subscription {$sub->name} in course {$sub->courseid}");
+        try {
+            $log = calendar_update_subscription_events($sub->id);
+            mtrace(trim(strip_tags($log)));
+        } catch (moodle_exception $ex) {
+            mtrace('Error updating calendar subscription: ' . $ex->getMessage());
+        }
+    }
+
+    mtrace('Finished updating calendar subscriptions.');
+
+    return true;
+}
+
+/**
+ * Previous internal API, it was not supposed to be used anywhere.
+ *
+ * @access private
+ * @deprecated since Moodle 3.4 and removed immediately. MDL-49398.
+ * @param int $userid the id of the user
+ * @param context_course $coursecontext course context
+ * @param array $accessdata accessdata array (modified)
+ * @return void modifies $accessdata parameter
+ */
+function load_course_context($userid, context_course $coursecontext, &$accessdata) {
+    throw new coding_exception('load_course_context() is removed. Do not use private functions or data structures.');
+}
+
+/**
+ * Previous internal API, it was not supposed to be used anywhere.
+ *
+ * @access private
+ * @deprecated since Moodle 3.4 and removed immediately. MDL-49398.
+ * @param int $roleid the id of the user
+ * @param context $context needs path!
+ * @param array $accessdata accessdata array (is modified)
+ * @return array
+ */
+function load_role_access_by_context($roleid, context $context, &$accessdata) {
+    throw new coding_exception('load_role_access_by_context() is removed. Do not use private functions or data structures.');
+}
+
+/**
+ * Previous internal API, it was not supposed to be used anywhere.
+ *
+ * @access private
+ * @deprecated since Moodle 3.4 and removed immediately. MDL-49398.
+ * @return void
+ */
+function dedupe_user_access() {
+    throw new coding_exception('dedupe_user_access() is removed. Do not use private functions or data structures.');
+}
+
+/**
+ * Previous internal API, it was not supposed to be used anywhere.
+ * Return a nested array showing role assignments
+ * and all relevant role capabilities for the user.
+ *
+ * [ra]   => [/path][roleid]=roleid
+ * [rdef] => ["$contextpath:$roleid"][capability]=permission
+ *
+ * @access private
+ * @deprecated since Moodle 3.4. MDL-49398.
+ * @param int $userid - the id of the user
+ * @return array access info array
+ */
+function get_user_access_sitewide($userid) {
+    debugging('get_user_access_sitewide() is deprecated. Do not use private functions or data structures.', DEBUG_DEVELOPER);
+
+    $accessdata = get_user_accessdata($userid);
+    $accessdata['rdef'] = array();
+    $roles = array();
+
+    foreach ($accessdata['ra'] as $path => $pathroles) {
+        $roles = array_merge($pathroles, $roles);
+    }
+
+    $rdefs = get_role_definitions($roles);
+
+    foreach ($rdefs as $roleid => $rdef) {
+        foreach ($rdef as $path => $caps) {
+            $accessdata['rdef']["$path:$roleid"] = $caps;
+        }
+    }
+
+    return $accessdata;
 }

@@ -2406,13 +2406,11 @@ class admin_setting_configpasswordunmask extends admin_setting_configtext {
     }
 
     /**
-     * Returns XHTML for the field
-     * Writes Javascript into the HTML below right before the last div
+     * Returns HTML for the field.
      *
-     * @todo Make javascript available through newer methods if possible
-     * @param string $data Value for the field
-     * @param string $query Passed as final argument for format_admin_setting
-     * @return string XHTML field
+     * @param   string  $data       Value for the field
+     * @param   string  $query      Passed as final argument for format_admin_setting
+     * @return  string              Rendered HTML
      */
     public function output_html($data, $query='') {
         global $OUTPUT;
@@ -2948,6 +2946,8 @@ class admin_setting_configmulticheckbox2 extends admin_setting_configmulticheckb
 class admin_setting_configselect extends admin_setting {
     /** @var array Array of choices value=>label */
     public $choices;
+    /** @var array Array of choices grouped using optgroups */
+    public $optgroups;
 
     /**
      * Constructor
@@ -2958,7 +2958,18 @@ class admin_setting_configselect extends admin_setting {
      * @param array $choices array of $value=>$label for each selection
      */
     public function __construct($name, $visiblename, $description, $defaultsetting, $choices) {
-        $this->choices = $choices;
+        // Look for optgroup and single options.
+        if (is_array($choices)) {
+            foreach ($choices as $key => $val) {
+                if (is_array($val)) {
+                    $this->optgroups[$key] = $val;
+                    $this->choices = array_merge($this->choices, $val);
+                } else {
+                    $this->choices[$key] = $val;
+                }
+            }
+        }
+
         parent::__construct($name, $visiblename, $description, $defaultsetting);
     }
 
@@ -3091,6 +3102,27 @@ class admin_setting_configselect extends admin_setting {
         }
 
         $options = [];
+        $template = 'core_admin/setting_configselect';
+
+        if (!empty($this->optgroups)) {
+            $optgroups = [];
+            foreach ($this->optgroups as $label => $choices) {
+                $optgroup = array('label' => $label, 'options' => []);
+                foreach ($choices as $value => $name) {
+                    $optgroup['options'][] = [
+                        'value' => $value,
+                        'name' => $name,
+                        'selected' => (string) $value == $data
+                    ];
+                    unset($this->choices[$value]);
+                }
+                $optgroups[] = $optgroup;
+            }
+            $context->options = $options;
+            $context->optgroups = $optgroups;
+            $template = 'core_admin/setting_configselect_optgroup';
+        }
+
         foreach ($this->choices as $value => $name) {
             $options[] = [
                 'value' => $value,
@@ -3100,7 +3132,7 @@ class admin_setting_configselect extends admin_setting {
         }
         $context->options = $options;
 
-        $element = $OUTPUT->render_from_template('core_admin/setting_configselect', $context);
+        $element = $OUTPUT->render_from_template($template, $context);
 
         return format_admin_setting($this, $this->visiblename, $element, $this->description, true, $warning, $defaultinfo, $query);
     }
@@ -3223,6 +3255,29 @@ class admin_setting_configmultiselect extends admin_setting_configselect {
 
         $defaults = [];
         $options = [];
+        $template = 'core_admin/setting_configmultiselect';
+
+        if (!empty($this->optgroups)) {
+            $optgroups = [];
+            foreach ($this->optgroups as $label => $choices) {
+                $optgroup = array('label' => $label, 'options' => []);
+                foreach ($choices as $value => $name) {
+                    if (in_array($value, $default)) {
+                        $defaults[] = $name;
+                    }
+                    $optgroup['options'][] = [
+                        'value' => $value,
+                        'name' => $name,
+                        'selected' => in_array($value, $data)
+                    ];
+                    unset($this->choices[$value]);
+                }
+                $optgroups[] = $optgroup;
+            }
+            $context->optgroups = $optgroups;
+            $template = 'core_admin/setting_configmultiselect_optgroup';
+        }
+
         foreach ($this->choices as $value => $name) {
             if (in_array($value, $default)) {
                 $defaults[] = $name;
@@ -3243,7 +3298,7 @@ class admin_setting_configmultiselect extends admin_setting_configselect {
             $defaultinfo = get_string('none');
         }
 
-        $element = $OUTPUT->render_from_template('core_admin/setting_configmultiselect', $context);
+        $element = $OUTPUT->render_from_template($template, $context);
 
         return format_admin_setting($this, $this->visiblename, $element, $this->description, true, '', $defaultinfo, $query);
     }
@@ -3582,6 +3637,179 @@ class admin_setting_configiplist extends admin_setting_configtextarea {
         } else {
             return get_string('validateiperror', 'admin', join(', ', $badips));
         }
+    }
+}
+
+/**
+ * Used to validate a textarea used for domain names, wildcard domain names and IP addresses/ranges (both IPv4 and IPv6 format).
+ *
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @copyright 2016 Jake Dallimore (jrhdallimore@gmail.com)
+ */
+class admin_setting_configmixedhostiplist extends admin_setting_configtextarea {
+
+    /**
+     * Validate the contents of the textarea as either IP addresses, domain name or wildcard domain name (RFC 4592).
+     * Used to validate a new line separated list of entries collected from a textarea control.
+     *
+     * This setting provides support for internationalised domain names (IDNs), however, such UTF-8 names will be converted to
+     * their ascii-compatible encoding (punycode) on save, and converted back to their UTF-8 representation when fetched
+     * via the get_setting() method, which has been overriden.
+     *
+     * @param string $data A list of FQDNs, DNS wildcard format domains, and IP addresses, separated by new lines.
+     * @return mixed bool true for success or string:error on failure
+     */
+    public function validate($data) {
+        if (empty($data)) {
+            return true;
+        }
+        $entries = explode("\n", $data);
+        $badentries = [];
+
+        foreach ($entries as $key => $entry) {
+            $entry = trim($entry);
+            if (empty($entry)) {
+                return get_string('validateemptylineerror', 'admin');
+            }
+
+            // Validate each string entry against the supported formats.
+            if (\core\ip_utils::is_ip_address($entry) || \core\ip_utils::is_ipv6_range($entry)
+                    || \core\ip_utils::is_ipv4_range($entry) || \core\ip_utils::is_domain_name($entry)
+                    || \core\ip_utils::is_domain_matching_pattern($entry)) {
+                continue;
+            }
+
+            // Otherwise, the entry is invalid.
+            $badentries[] = $entry;
+        }
+
+        if ($badentries) {
+            return get_string('validateerrorlist', 'admin', join(', ', $badentries));
+        }
+        return true;
+    }
+
+    /**
+     * Convert any lines containing international domain names (IDNs) to their ascii-compatible encoding (ACE).
+     *
+     * @param string $data the setting data, as sent from the web form.
+     * @return string $data the setting data, with all IDNs converted (using punycode) to their ascii encoded version.
+     */
+    protected function ace_encode($data) {
+        if (empty($data)) {
+            return $data;
+        }
+        $entries = explode("\n", $data);
+        foreach ($entries as $key => $entry) {
+            $entry = trim($entry);
+            // This regex matches any string which:
+            // a) contains at least one non-ascii unicode character AND
+            // b) starts with a-zA-Z0-9 or any non-ascii unicode character AND
+            // c) ends with a-zA-Z0-9 or any non-ascii unicode character
+            // d) contains a-zA-Z0-9, hyphen, dot or any non-ascii unicode characters in the middle.
+            if (preg_match('/^(?=[^\x00-\x7f])([^\x00-\x7f]|[a-zA-Z0-9])([^\x00-\x7f]|[a-zA-Z0-9-.])*([^\x00-\x7f]|[a-zA-Z0-9])$/',
+                $entry)) {
+                // If we can convert the unicode string to an idn, do so.
+                // Otherwise, leave the original unicode string alone and let the validation function handle it (it will fail).
+                $val = idn_to_ascii($entry);
+                $entries[$key] = $val ? $val : $entry;
+            }
+        }
+        return implode("\n", $entries);
+    }
+
+    /**
+     * Decode any ascii-encoded domain names back to their utf-8 representation for display.
+     *
+     * @param string $data the setting data, as found in the database.
+     * @return string $data the setting data, with all ascii-encoded IDNs decoded back to their utf-8 representation.
+     */
+    protected function ace_decode($data) {
+        $entries = explode("\n", $data);
+        foreach ($entries as $key => $entry) {
+            $entry = trim($entry);
+            if (strpos($entry, 'xn--') !== false) {
+                $entries[$key] = idn_to_utf8($entry);
+            }
+        }
+        return implode("\n", $entries);
+    }
+
+    /**
+     * Override, providing utf8-decoding for ascii-encoded IDN strings.
+     *
+     * @return mixed returns punycode-converted setting string if successful, else null.
+     */
+    public function get_setting() {
+        // Here, we need to decode any ascii-encoded IDNs back to their native, utf-8 representation.
+        $data = $this->config_read($this->name);
+        if (function_exists('idn_to_utf8') && !is_null($data)) {
+            $data = $this->ace_decode($data);
+        }
+        return $data;
+    }
+
+    /**
+     * Override, providing ascii-encoding for utf8 (native) IDN strings.
+     *
+     * @param string $data
+     * @return string
+     */
+    public function write_setting($data) {
+        if ($this->paramtype === PARAM_INT and $data === '') {
+            // Do not complain if '' used instead of 0.
+            $data = 0;
+        }
+
+        // Try to convert any non-ascii domains to ACE prior to validation - we can't modify anything in validate!
+        if (function_exists('idn_to_ascii')) {
+            $data = $this->ace_encode($data);
+        }
+
+        $validated = $this->validate($data);
+        if ($validated !== true) {
+            return $validated;
+        }
+        return ($this->config_write($this->name, $data) ? '' : get_string('errorsetting', 'admin'));
+    }
+}
+
+/**
+ * Used to validate a textarea used for port numbers.
+ *
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @copyright 2016 Jake Dallimore (jrhdallimore@gmail.com)
+ */
+class admin_setting_configportlist extends admin_setting_configtextarea {
+
+    /**
+     * Validate the contents of the textarea as port numbers.
+     * Used to validate a new line separated list of ports collected from a textarea control.
+     *
+     * @param string $data A list of ports separated by new lines
+     * @return mixed bool true for success or string:error on failure
+     */
+    public function validate($data) {
+        if (empty($data)) {
+            return true;
+        }
+        $ports = explode("\n", $data);
+        $badentries = [];
+        foreach ($ports as $port) {
+            $port = trim($port);
+            if (empty($port)) {
+                return get_string('validateemptylineerror', 'admin');
+            }
+
+            // Is the string a valid integer number?
+            if (strval(intval($port)) !== $port || intval($port) <= 0) {
+                $badentries[] = $port;
+            }
+        }
+        if ($badentries) {
+            return get_string('validateerrorlist', 'admin', $badentries);
+        }
+        return true;
     }
 }
 
@@ -4897,6 +5125,28 @@ class admin_setting_configselect_with_advanced extends admin_setting_configselec
 
 }
 
+/**
+ * Select with an advanced checkbox that controls an additional $name.'_locked' config setting.
+ *
+ * @copyright 2017 Marina Glancy
+ * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+class admin_setting_configselect_with_lock extends admin_setting_configselect {
+    /**
+     * Constructor
+     * @param string $name unique ascii name, either 'mysetting' for settings that in config,
+     *     or 'myplugin/mysetting' for ones in config_plugins.
+     * @param string $visiblename localised
+     * @param string $description long localised info
+     * @param array $defaultsetting ('value'=>string, 'locked'=>bool)
+     * @param array $choices array of $value=>$label for each selection
+     */
+    public function __construct($name, $visiblename, $description, $defaultsetting, $choices) {
+        parent::__construct($name, $visiblename, $description, $defaultsetting['value'], $choices);
+        $this->set_locked_flag_options(admin_setting_flag::ENABLED, !empty($defaultsetting['locked']));
+    }
+}
+
 
 /**
  * Graded roles in gradebook
@@ -5719,13 +5969,13 @@ class admin_setting_manageenrols extends admin_setting {
             if (isset($active_enrols[$enrol])) {
                 $aurl = new moodle_url($url, array('action'=>'disable', 'enrol'=>$enrol));
                 $hideshow = "<a href=\"$aurl\">";
-                $hideshow .= "<img src=\"" . $OUTPUT->pix_url('t/hide') . "\" class=\"iconsmall\" alt=\"$strdisable\" /></a>";
+                $hideshow .= $OUTPUT->pix_icon('t/hide', $strdisable) . '</a>';
                 $enabled = true;
                 $displayname = $name;
             } else if (isset($enrols_available[$enrol])) {
                 $aurl = new moodle_url($url, array('action'=>'enable', 'enrol'=>$enrol));
                 $hideshow = "<a href=\"$aurl\">";
-                $hideshow .= "<img src=\"" . $OUTPUT->pix_url('t/show') . "\" class=\"iconsmall\" alt=\"$strenable\" /></a>";
+                $hideshow .= $OUTPUT->pix_icon('t/show', $strenable) . '</a>';
                 $enabled = false;
                 $displayname = $name;
                 $class = 'dimmed_text';
@@ -5746,16 +5996,16 @@ class admin_setting_manageenrols extends admin_setting {
                 if ($updowncount > 1) {
                     $aurl = new moodle_url($url, array('action'=>'up', 'enrol'=>$enrol));
                     $updown .= "<a href=\"$aurl\">";
-                    $updown .= "<img src=\"" . $OUTPUT->pix_url('t/up') . "\" alt=\"$strup\" class=\"iconsmall\" /></a>&nbsp;";
+                    $updown .= $OUTPUT->pix_icon('t/up', $strup) . '</a>&nbsp;';
                 } else {
-                    $updown .= "<img src=\"" . $OUTPUT->pix_url('spacer') . "\" class=\"iconsmall\" alt=\"\" />&nbsp;";
+                    $updown .= $OUTPUT->spacer() . '&nbsp;';
                 }
                 if ($updowncount < $enrolcount) {
                     $aurl = new moodle_url($url, array('action'=>'down', 'enrol'=>$enrol));
                     $updown .= "<a href=\"$aurl\">";
-                    $updown .= "<img src=\"" . $OUTPUT->pix_url('t/down') . "\" alt=\"$strdown\" class=\"iconsmall\" /></a>";
+                    $updown .= $OUTPUT->pix_icon('t/down', $strdown) . '</a>&nbsp;';
                 } else {
-                    $updown .= "<img src=\"" . $OUTPUT->pix_url('spacer') . "\" class=\"iconsmall\" alt=\"\" />";
+                    $updown .= $OUTPUT->spacer() . '&nbsp;';
                 }
                 ++$updowncount;
             }
@@ -6258,14 +6508,12 @@ class admin_setting_manageauths extends admin_setting {
 
         //add always enabled plugins first
         $displayname = $displayauths['manual'];
-        $settings = "<a href=\"auth_config.php?auth=manual\">{$txt->settings}</a>";
-        //$settings = "<a href=\"settings.php?section=authsettingmanual\">{$txt->settings}</a>";
+        $settings = "<a href=\"settings.php?section=authsettingmanual\">{$txt->settings}</a>";
         $usercount = $DB->count_records('user', array('auth'=>'manual', 'deleted'=>0));
         $table->data[] = array($displayname, $usercount, '', '', $settings, '', '');
         $displayname = $displayauths['nologin'];
-        $settings = "<a href=\"auth_config.php?auth=nologin\">{$txt->settings}</a>";
         $usercount = $DB->count_records('user', array('auth'=>'nologin', 'deleted'=>0));
-        $table->data[] = array($displayname, $usercount, '', '', $settings, '', '');
+        $table->data[] = array($displayname, $usercount, '', '', '', '', '');
 
 
         // iterate through auth plugins and add to the display table
@@ -6280,15 +6528,13 @@ class admin_setting_manageauths extends admin_setting {
             // hide/show link
             if (in_array($auth, $authsenabled)) {
                 $hideshow = "<a href=\"$url&amp;action=disable&amp;auth=$auth\">";
-                $hideshow .= "<img src=\"" . $OUTPUT->pix_url('t/hide') . "\" class=\"iconsmall\" alt=\"disable\" /></a>";
-                // $hideshow = "<a href=\"$url&amp;action=disable&amp;auth=$auth\"><input type=\"checkbox\" checked /></a>";
+                $hideshow .= $OUTPUT->pix_icon('t/hide', get_string('disable')) . '</a>';
                 $enabled = true;
                 $displayname = $name;
             }
             else {
                 $hideshow = "<a href=\"$url&amp;action=enable&amp;auth=$auth\">";
-                $hideshow .= "<img src=\"" . $OUTPUT->pix_url('t/show') . "\" class=\"iconsmall\" alt=\"enable\" /></a>";
-                // $hideshow = "<a href=\"$url&amp;action=enable&amp;auth=$auth\"><input type=\"checkbox\" /></a>";
+                $hideshow .= $OUTPUT->pix_icon('t/show', get_string('enable')) . '</a>';
                 $enabled = false;
                 $displayname = $name;
                 $class = 'dimmed_text';
@@ -6301,17 +6547,17 @@ class admin_setting_manageauths extends admin_setting {
             if ($enabled) {
                 if ($updowncount > 1) {
                     $updown .= "<a href=\"$url&amp;action=up&amp;auth=$auth\">";
-                    $updown .= "<img src=\"" . $OUTPUT->pix_url('t/up') . "\" alt=\"up\" class=\"iconsmall\" /></a>&nbsp;";
+                    $updown .= $OUTPUT->pix_icon('t/up', get_string('moveup')) . '</a>&nbsp;';
                 }
                 else {
-                    $updown .= "<img src=\"" . $OUTPUT->pix_url('spacer') . "\" class=\"iconsmall\" alt=\"\" />&nbsp;";
+                    $updown .= $OUTPUT->spacer() . '&nbsp;';
                 }
                 if ($updowncount < $authcount) {
                     $updown .= "<a href=\"$url&amp;action=down&amp;auth=$auth\">";
-                    $updown .= "<img src=\"" . $OUTPUT->pix_url('t/down') . "\" alt=\"down\" class=\"iconsmall\" /></a>";
+                    $updown .= $OUTPUT->pix_icon('t/down', get_string('movedown')) . '</a>&nbsp;';
                 }
                 else {
-                    $updown .= "<img src=\"" . $OUTPUT->pix_url('spacer') . "\" class=\"iconsmall\" alt=\"\" />";
+                    $updown .= $OUTPUT->spacer() . '&nbsp;';
                 }
                 ++ $updowncount;
             }
@@ -6319,8 +6565,10 @@ class admin_setting_manageauths extends admin_setting {
             // settings link
             if (file_exists($CFG->dirroot.'/auth/'.$auth.'/settings.php')) {
                 $settings = "<a href=\"settings.php?section=authsetting$auth\">{$txt->settings}</a>";
-            } else {
+            } else if (file_exists($CFG->dirroot.'/auth/'.$auth.'/config.html')) {
                 $settings = "<a href=\"auth_config.php?auth=$auth\">{$txt->settings}</a>";
+            } else {
+                $settings = '';
             }
 
             // Uninstall link.
@@ -6468,15 +6716,13 @@ class admin_setting_manageeditors extends admin_setting {
             $class = '';
             if (in_array($editor, $active_editors)) {
                 $hideshow = "<a href=\"$url&amp;action=disable&amp;editor=$editor\">";
-                $hideshow .= "<img src=\"" . $OUTPUT->pix_url('t/hide') . "\" class=\"iconsmall\" alt=\"disable\" /></a>";
-                // $hideshow = "<a href=\"$url&amp;action=disable&amp;editor=$editor\"><input type=\"checkbox\" checked /></a>";
+                $hideshow .= $OUTPUT->pix_icon('t/hide', get_string('disable')) . '</a>';
                 $enabled = true;
                 $displayname = $name;
             }
             else {
                 $hideshow = "<a href=\"$url&amp;action=enable&amp;editor=$editor\">";
-                $hideshow .= "<img src=\"" . $OUTPUT->pix_url('t/show') . "\" class=\"iconsmall\" alt=\"enable\" /></a>";
-                // $hideshow = "<a href=\"$url&amp;action=enable&amp;editor=$editor\"><input type=\"checkbox\" /></a>";
+                $hideshow .= $OUTPUT->pix_icon('t/show', get_string('enable')) . '</a>';
                 $enabled = false;
                 $displayname = $name;
                 $class = 'dimmed_text';
@@ -6487,17 +6733,17 @@ class admin_setting_manageeditors extends admin_setting {
             if ($enabled) {
                 if ($updowncount > 1) {
                     $updown .= "<a href=\"$url&amp;action=up&amp;editor=$editor\">";
-                    $updown .= "<img src=\"" . $OUTPUT->pix_url('t/up') . "\" alt=\"up\" class=\"iconsmall\" /></a>&nbsp;";
+                    $updown .= $OUTPUT->pix_icon('t/up', get_string('moveup')) . '</a>&nbsp;';
                 }
                 else {
-                    $updown .= "<img src=\"" . $OUTPUT->pix_url('spacer') . "\" class=\"iconsmall\" alt=\"\" />&nbsp;";
+                    $updown .= $OUTPUT->spacer() . '&nbsp;';
                 }
                 if ($updowncount < $editorcount) {
                     $updown .= "<a href=\"$url&amp;action=down&amp;editor=$editor\">";
-                    $updown .= "<img src=\"" . $OUTPUT->pix_url('t/down') . "\" alt=\"down\" class=\"iconsmall\" /></a>";
+                    $updown .= $OUTPUT->pix_icon('t/down', get_string('movedown')) . '</a>&nbsp;';
                 }
                 else {
-                    $updown .= "<img src=\"" . $OUTPUT->pix_url('spacer') . "\" class=\"iconsmall\" alt=\"\" />";
+                    $updown .= $OUTPUT->spacer() . '&nbsp;';
                 }
                 ++ $updowncount;
             }
@@ -6647,14 +6893,14 @@ class admin_setting_manageantiviruses extends admin_setting {
             if (in_array($antivirus, $activeantiviruses)) {
                 $hideshowurl = $baseurl;
                 $hideshowurl->params(array('action' => 'disable', 'antivirus' => $antivirus));
-                $hideshowimg = html_writer::img($OUTPUT->pix_url('t/hide'), 'disable', array('class' => 'iconsmall'));
+                $hideshowimg = $OUTPUT->pix_icon('t/hide', get_string('disable'));
                 $hideshow = html_writer::link($hideshowurl, $hideshowimg);
                 $enabled = true;
                 $displayname = $name;
             } else {
                 $hideshowurl = $baseurl;
                 $hideshowurl->params(array('action' => 'enable', 'antivirus' => $antivirus));
-                $hideshowimg = html_writer::img($OUTPUT->pix_url('t/show'), 'enable', array('class' => 'iconsmall'));
+                $hideshowimg = $OUTPUT->pix_icon('t/show', get_string('enable'));
                 $hideshow = html_writer::link($hideshowurl, $hideshowimg);
                 $enabled = false;
                 $displayname = $name;
@@ -6667,18 +6913,18 @@ class admin_setting_manageantiviruses extends admin_setting {
                 if ($updowncount > 1) {
                     $updownurl = $baseurl;
                     $updownurl->params(array('action' => 'up', 'antivirus' => $antivirus));
-                    $updownimg = html_writer::img($OUTPUT->pix_url('t/up'), 'up', array('class' => 'iconsmall'));
+                    $updownimg = $OUTPUT->pix_icon('t/up', get_string('moveup'));
                     $updown = html_writer::link($updownurl, $updownimg);
                 } else {
-                    $updown .= html_writer::img($OUTPUT->pix_url('spacer'), '', array('class' => 'iconsmall'));
+                    $updownimg = $OUTPUT->spacer();
                 }
                 if ($updowncount < $antiviruscount) {
                     $updownurl = $baseurl;
                     $updownurl->params(array('action' => 'down', 'antivirus' => $antivirus));
-                    $updownimg = html_writer::img($OUTPUT->pix_url('t/down'), 'down', array('class' => 'iconsmall'));
+                    $updownimg = $OUTPUT->pix_icon('t/down', get_string('movedown'));
                     $updown = html_writer::link($updownurl, $updownimg);
                 } else {
-                    $updown .= html_writer::img($OUTPUT->pix_url('spacer'), '', array('class' => 'iconsmall'));
+                    $updownimg = $OUTPUT->spacer();
                 }
                 ++ $updowncount;
             }
@@ -6784,14 +7030,14 @@ class admin_setting_managelicenses extends admin_setting {
 
             if ($value->enabled == 1) {
                 $hideshow = html_writer::link($url.'&action=disable&license='.$value->shortname,
-                    html_writer::tag('img', '', array('src'=>$OUTPUT->pix_url('t/hide'), 'class'=>'iconsmall', 'alt'=>'disable')));
+                    $OUTPUT->pix_icon('t/hide', get_string('disable')));
             } else {
                 $hideshow = html_writer::link($url.'&action=enable&license='.$value->shortname,
-                    html_writer::tag('img', '', array('src'=>$OUTPUT->pix_url('t/show'), 'class'=>'iconsmall', 'alt'=>'enable')));
+                    $OUTPUT->pix_icon('t/show', get_string('enable')));
             }
 
             if ($value->shortname == $CFG->sitedefaultlicense) {
-                $displayname .= ' '.html_writer::tag('img', '', array('src'=>$OUTPUT->pix_url('t/locked'), 'class'=>'iconsmall', 'alt'=>get_string('default'), 'title'=>get_string('default')));
+                $displayname .= ' '.$OUTPUT->pix_icon('t/locked', get_string('default'));
                 $hideshow = '';
             }
 
@@ -7160,6 +7406,451 @@ class admin_page_managefilters extends admin_externalpage {
     }
 }
 
+/**
+ * Generic class for managing plugins in a table that allows re-ordering and enable/disable of each plugin.
+ * Requires a get_rank method on the plugininfo class for sorting.
+ *
+ * @copyright 2017 Damyon Wiese
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+abstract class admin_setting_manage_plugins extends admin_setting {
+
+    /**
+     * Get the admin settings section name (just a unique string)
+     *
+     * @return string
+     */
+    public function get_section_name() {
+        return 'manage' . $this->get_plugin_type() . 'plugins';
+    }
+
+    /**
+     * Get the admin settings section title (use get_string).
+     *
+     * @return string
+     */
+    abstract public function get_section_title();
+
+    /**
+     * Get the type of plugin to manage.
+     *
+     * @return string
+     */
+    abstract public function get_plugin_type();
+
+    /**
+     * Get the name of the second column.
+     *
+     * @return string
+     */
+    public function get_info_column_name() {
+        return '';
+    }
+
+    /**
+     * Get the type of plugin to manage.
+     *
+     * @param plugininfo The plugin info class.
+     * @return string
+     */
+    abstract public function get_info_column($plugininfo);
+
+    /**
+     * Calls parent::__construct with specific arguments
+     */
+    public function __construct() {
+        $this->nosave = true;
+        parent::__construct($this->get_section_name(), $this->get_section_title(), '', '');
+    }
+
+    /**
+     * Always returns true, does nothing
+     *
+     * @return true
+     */
+    public function get_setting() {
+        return true;
+    }
+
+    /**
+     * Always returns true, does nothing
+     *
+     * @return true
+     */
+    public function get_defaultsetting() {
+        return true;
+    }
+
+    /**
+     * Always returns '', does not write anything
+     *
+     * @param mixed $data
+     * @return string Always returns ''
+     */
+    public function write_setting($data) {
+        // Do not write any setting.
+        return '';
+    }
+
+    /**
+     * Checks if $query is one of the available plugins of this type
+     *
+     * @param string $query The string to search for
+     * @return bool Returns true if found, false if not
+     */
+    public function is_related($query) {
+        if (parent::is_related($query)) {
+            return true;
+        }
+
+        $query = core_text::strtolower($query);
+        $plugins = core_plugin_manager::instance()->get_plugins_of_type($this->get_plugin_type());
+        foreach ($plugins as $name => $plugin) {
+            $localised = $plugin->displayname;
+            if (strpos(core_text::strtolower($name), $query) !== false) {
+                return true;
+            }
+            if (strpos(core_text::strtolower($localised), $query) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * The URL for the management page for this plugintype.
+     *
+     * @return moodle_url
+     */
+    protected function get_manage_url() {
+        return new moodle_url('/admin/updatesetting.php');
+    }
+
+    /**
+     * Builds the HTML to display the control.
+     *
+     * @param string $data Unused
+     * @param string $query
+     * @return string
+     */
+    public function output_html($data, $query = '') {
+        global $CFG, $OUTPUT, $DB, $PAGE;
+
+        $context = (object) [
+            'manageurl' => new moodle_url($this->get_manage_url(), [
+                    'type' => $this->get_plugin_type(),
+                    'sesskey' => sesskey(),
+                ]),
+            'infocolumnname' => $this->get_info_column_name(),
+            'plugins' => [],
+        ];
+
+        $pluginmanager = core_plugin_manager::instance();
+        $allplugins = $pluginmanager->get_plugins_of_type($this->get_plugin_type());
+        $enabled = $pluginmanager->get_enabled_plugins($this->get_plugin_type());
+        $plugins = array_merge($enabled, $allplugins);
+        foreach ($plugins as $key => $plugin) {
+            $pluginlink = new moodle_url($context->manageurl, ['plugin' => $key]);
+
+            $pluginkey = (object) [
+                'plugin' => $plugin->displayname,
+                'enabled' => $plugin->is_enabled(),
+                'togglelink' => '',
+                'moveuplink' => '',
+                'movedownlink' => '',
+                'settingslink' => $plugin->get_settings_url(),
+                'uninstalllink' => '',
+                'info' => '',
+            ];
+
+            // Enable/Disable link.
+            $togglelink = new moodle_url($pluginlink);
+            if ($plugin->is_enabled()) {
+                $toggletarget = false;
+                $togglelink->param('action', 'disable');
+
+                if (count($context->plugins)) {
+                    // This is not the first plugin.
+                    $pluginkey->moveuplink = new moodle_url($pluginlink, ['action' => 'up']);
+                }
+
+                if (count($enabled) > count($context->plugins) + 1) {
+                    // This is not the last plugin.
+                    $pluginkey->movedownlink = new moodle_url($pluginlink, ['action' => 'down']);
+                }
+
+                $pluginkey->info = $this->get_info_column($plugin);
+            } else {
+                $toggletarget = true;
+                $togglelink->param('action', 'enable');
+            }
+
+            $pluginkey->toggletarget = $toggletarget;
+            $pluginkey->togglelink = $togglelink;
+
+            $frankenstyle = $plugin->type . '_' . $plugin->name;
+            if ($uninstalllink = core_plugin_manager::instance()->get_uninstall_url($frankenstyle, 'manage')) {
+                // This plugin supports uninstallation.
+                $pluginkey->uninstalllink = $uninstalllink;
+            }
+
+            if (!empty($this->get_info_column_name())) {
+                // This plugintype has an info column.
+                $pluginkey->info = $this->get_info_column($plugin);
+            }
+
+            $context->plugins[] = $pluginkey;
+        }
+
+        $str = $OUTPUT->render_from_template('core_admin/setting_manage_plugins', $context);
+        return highlight($query, $str);
+    }
+}
+
+/**
+ * Generic class for managing plugins in a table that allows re-ordering and enable/disable of each plugin.
+ * Requires a get_rank method on the plugininfo class for sorting.
+ *
+ * @copyright 2017 Andrew Nicols <andrew@nicols.co.uk>
+* @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+class admin_setting_manage_fileconverter_plugins extends admin_setting_manage_plugins {
+    public function get_section_title() {
+        return get_string('type_fileconverter_plural', 'plugin');
+    }
+
+    public function get_plugin_type() {
+        return 'fileconverter';
+    }
+
+    public function get_info_column_name() {
+        return get_string('supportedconversions', 'plugin');
+    }
+
+    public function get_info_column($plugininfo) {
+        return $plugininfo->get_supported_conversions();
+    }
+}
+
+/**
+ * Special class for media player plugins management.
+ *
+ * @copyright 2016 Marina Glancy
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+class admin_setting_managemediaplayers extends admin_setting {
+    /**
+     * Calls parent::__construct with specific arguments
+     */
+    public function __construct() {
+        $this->nosave = true;
+        parent::__construct('managemediaplayers', get_string('managemediaplayers', 'media'), '', '');
+    }
+
+    /**
+     * Always returns true, does nothing
+     *
+     * @return true
+     */
+    public function get_setting() {
+        return true;
+    }
+
+    /**
+     * Always returns true, does nothing
+     *
+     * @return true
+     */
+    public function get_defaultsetting() {
+        return true;
+    }
+
+    /**
+     * Always returns '', does not write anything
+     *
+     * @param mixed $data
+     * @return string Always returns ''
+     */
+    public function write_setting($data) {
+        // Do not write any setting.
+        return '';
+    }
+
+    /**
+     * Checks if $query is one of the available enrol plugins
+     *
+     * @param string $query The string to search for
+     * @return bool Returns true if found, false if not
+     */
+    public function is_related($query) {
+        if (parent::is_related($query)) {
+            return true;
+        }
+
+        $query = core_text::strtolower($query);
+        $plugins = core_plugin_manager::instance()->get_plugins_of_type('media');
+        foreach ($plugins as $name => $plugin) {
+            $localised = $plugin->displayname;
+            if (strpos(core_text::strtolower($name), $query) !== false) {
+                return true;
+            }
+            if (strpos(core_text::strtolower($localised), $query) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Sort plugins so enabled plugins are displayed first and all others are displayed in the end sorted by rank.
+     * @return \core\plugininfo\media[]
+     */
+    protected function get_sorted_plugins() {
+        $pluginmanager = core_plugin_manager::instance();
+
+        $plugins = $pluginmanager->get_plugins_of_type('media');
+        $enabledplugins = $pluginmanager->get_enabled_plugins('media');
+
+        // Sort plugins so enabled plugins are displayed first and all others are displayed in the end sorted by rank.
+        \core_collator::asort_objects_by_method($plugins, 'get_rank', \core_collator::SORT_NUMERIC);
+
+        $order = array_values($enabledplugins);
+        $order = array_merge($order, array_diff(array_reverse(array_keys($plugins)), $order));
+
+        $sortedplugins = array();
+        foreach ($order as $name) {
+            $sortedplugins[$name] = $plugins[$name];
+        }
+
+        return $sortedplugins;
+    }
+
+    /**
+     * Builds the XHTML to display the control
+     *
+     * @param string $data Unused
+     * @param string $query
+     * @return string
+     */
+    public function output_html($data, $query='') {
+        global $CFG, $OUTPUT, $DB, $PAGE;
+
+        // Display strings.
+        $strup        = get_string('up');
+        $strdown      = get_string('down');
+        $strsettings  = get_string('settings');
+        $strenable    = get_string('enable');
+        $strdisable   = get_string('disable');
+        $struninstall = get_string('uninstallplugin', 'core_admin');
+        $strversion   = get_string('version');
+        $strname      = get_string('name');
+        $strsupports  = get_string('supports', 'core_media');
+
+        $pluginmanager = core_plugin_manager::instance();
+
+        $plugins = $this->get_sorted_plugins();
+        $enabledplugins = $pluginmanager->get_enabled_plugins('media');
+
+        $return = $OUTPUT->box_start('generalbox mediaplayersui');
+
+        $table = new html_table();
+        $table->head  = array($strname, $strsupports, $strversion,
+            $strenable, $strup.'/'.$strdown, $strsettings, $struninstall);
+        $table->colclasses = array('leftalign', 'leftalign', 'centeralign',
+            'centeralign', 'centeralign', 'centeralign', 'centeralign');
+        $table->id = 'mediaplayerplugins';
+        $table->attributes['class'] = 'admintable generaltable';
+        $table->data  = array();
+
+        // Iterate through media plugins and add to the display table.
+        $updowncount = 1;
+        $url = new moodle_url('/admin/media.php', array('sesskey' => sesskey()));
+        $printed = array();
+        $spacer = $OUTPUT->pix_icon('spacer', '', 'moodle', array('class' => 'iconsmall'));
+
+        $usedextensions = [];
+        foreach ($plugins as $name => $plugin) {
+            $url->param('media', $name);
+            $plugininfo = $pluginmanager->get_plugin_info('media_'.$name);
+            $version = $plugininfo->versiondb;
+            $supports = $plugininfo->supports($usedextensions);
+
+            // Hide/show links.
+            $class = '';
+            if (!$plugininfo->is_installed_and_upgraded()) {
+                $hideshow = '';
+                $enabled = false;
+                $displayname = '<span class="notifyproblem">'.$name.'</span>';
+            } else {
+                $enabled = $plugininfo->is_enabled();
+                if ($enabled) {
+                    $hideshow = html_writer::link(new moodle_url($url, array('action' => 'disable')),
+                        $OUTPUT->pix_icon('t/hide', $strdisable, 'moodle', array('class' => 'iconsmall')));
+                } else {
+                    $hideshow = html_writer::link(new moodle_url($url, array('action' => 'enable')),
+                        $OUTPUT->pix_icon('t/show', $strenable, 'moodle', array('class' => 'iconsmall')));
+                    $class = 'dimmed_text';
+                }
+                $displayname = $plugin->displayname;
+                if (get_string_manager()->string_exists('pluginname_help', 'media_' . $name)) {
+                    $displayname .= '&nbsp;' . $OUTPUT->help_icon('pluginname', 'media_' . $name);
+                }
+            }
+            if ($PAGE->theme->resolve_image_location('icon', 'media_' . $name, false)) {
+                $icon = $OUTPUT->pix_icon('icon', '', 'media_' . $name, array('class' => 'icon pluginicon'));
+            } else {
+                $icon = $OUTPUT->pix_icon('spacer', '', 'moodle', array('class' => 'icon pluginicon noicon'));
+            }
+
+            // Up/down link (only if enrol is enabled).
+            $updown = '';
+            if ($enabled) {
+                if ($updowncount > 1) {
+                    $updown = html_writer::link(new moodle_url($url, array('action' => 'up')),
+                        $OUTPUT->pix_icon('t/up', $strup, 'moodle', array('class' => 'iconsmall')));
+                } else {
+                    $updown = $spacer;
+                }
+                if ($updowncount < count($enabledplugins)) {
+                    $updown .= html_writer::link(new moodle_url($url, array('action' => 'down')),
+                        $OUTPUT->pix_icon('t/down', $strdown, 'moodle', array('class' => 'iconsmall')));
+                } else {
+                    $updown .= $spacer;
+                }
+                ++$updowncount;
+            }
+
+            $uninstall = '';
+            $status = $plugininfo->get_status();
+            if ($status === core_plugin_manager::PLUGIN_STATUS_MISSING) {
+                $uninstall = get_string('status_missing', 'core_plugin') . '<br/>';
+            }
+            if ($status === core_plugin_manager::PLUGIN_STATUS_NEW) {
+                $uninstall = get_string('status_new', 'core_plugin');
+            } else if ($uninstallurl = $pluginmanager->get_uninstall_url('media_'.$name, 'manage')) {
+                $uninstall .= html_writer::link($uninstallurl, $struninstall);
+            }
+
+            $settings = '';
+            if ($plugininfo->get_settings_url()) {
+                $settings = html_writer::link($plugininfo->get_settings_url(), $strsettings);
+            }
+
+            // Add a row to the table.
+            $row = new html_table_row(array($icon.$displayname, $supports, $version, $hideshow, $updown, $settings, $uninstall));
+            if ($class) {
+                $row->attributes['class'] = $class;
+            }
+            $table->data[] = $row;
+
+            $printed[$name] = true;
+        }
+
+        $return .= html_writer::table($table);
+        $return .= $OUTPUT->box_end();
+        return highlight($query, $return);
+    }
+}
 
 /**
  * Initialise admin page - this function does require login and permission
@@ -7950,14 +8641,14 @@ class admin_setting_managerepository extends admin_setting {
 
                 if ($updowncount > 1) {
                     $updown .= "<a href=\"$this->baseurl&amp;action=moveup&amp;repos=".$typename."\">";
-                    $updown .= "<img src=\"" . $OUTPUT->pix_url('t/up') . "\" alt=\"up\" class=\"iconsmall\" /></a>&nbsp;";
+                    $updown .= $OUTPUT->pix_icon('t/up', get_string('moveup')) . '</a>&nbsp;';
                 }
                 else {
                     $updown .= $spacer;
                 }
                 if ($updowncount < $totalrepositorytypes) {
                     $updown .= "<a href=\"$this->baseurl&amp;action=movedown&amp;repos=".$typename."\">";
-                    $updown .= "<img src=\"" . $OUTPUT->pix_url('t/down') . "\" alt=\"down\" class=\"iconsmall\" /></a>";
+                    $updown .= $OUTPUT->pix_icon('t/down', get_string('movedown')) . '</a>&nbsp;';
                 }
                 else {
                     $updown .= $spacer;
@@ -8417,22 +9108,6 @@ class admin_setting_webservicesoverview extends admin_setting {
         $return = "";
         $brtag = html_writer::empty_tag('br');
 
-        // Enable mobile web service
-        $enablemobile = new admin_setting_enablemobileservice('enablemobilewebservice',
-                get_string('enablemobilewebservice', 'admin'),
-                get_string('configenablemobilewebservice',
-                        'admin', ''), 0); //we don't want to display it but to know the ws mobile status
-        $manageserviceurl = new moodle_url("/admin/settings.php?section=mobile");
-        $wsmobileparam = new stdClass();
-        $wsmobileparam->enablemobileservice = get_string('enablemobilewebservice', 'admin');
-        $wsmobileparam->manageservicelink = html_writer::link($manageserviceurl,
-                get_string('mobile', 'admin'));
-        $mobilestatus = $enablemobile->get_setting()?get_string('mobilewsenabled', 'webservice'):get_string('mobilewsdisabled', 'webservice');
-        $wsmobileparam->wsmobilestatus = html_writer::tag('strong', $mobilestatus);
-        $return .= $OUTPUT->heading(get_string('enablemobilewebservice', 'admin'), 3, 'main');
-        $return .= $brtag . get_string('enablemobilewsoverview', 'webservice', $wsmobileparam)
-                . $brtag . $brtag;
-
         /// One system controlling Moodle with Token
         $return .= $OUTPUT->heading(get_string('onesystemcontrolling', 'webservice'), 3, 'main');
         $table = new html_table();
@@ -8767,11 +9442,11 @@ class admin_setting_managewebserviceprotocols extends admin_setting {
             // hide/show link
             if (in_array($protocol, $active_protocols)) {
                 $hideshow = "<a href=\"$url&amp;action=disable&amp;webservice=$protocol\">";
-                $hideshow .= "<img src=\"" . $OUTPUT->pix_url('t/hide') . "\" class=\"iconsmall\" alt=\"$strdisable\" /></a>";
+                $hideshow .= $OUTPUT->pix_icon('t/hide', $strdisable) . '</a>';
                 $displayname = "<span>$name</span>";
             } else {
                 $hideshow = "<a href=\"$url&amp;action=enable&amp;webservice=$protocol\">";
-                $hideshow .= "<img src=\"" . $OUTPUT->pix_url('t/show') . "\" class=\"iconsmall\" alt=\"$strenable\" /></a>";
+                $hideshow .= $OUTPUT->pix_icon('t/show', $strenable) . '</a>';
                 $displayname = "<span class=\"dimmed_text\">$name</span>";
             }
 
@@ -9081,6 +9756,7 @@ class admin_setting_configcolourpicker extends admin_setting {
         $context = (object) [
             'id' => $this->get_id(),
             'name' => $this->get_full_name(),
+            'value' => $data,
             'icon' => $icon->export_for_template($OUTPUT),
             'haspreviewconfig' => !empty($this->previewconfig),
             'forceltr' => $this->get_force_ltr()
@@ -9699,19 +10375,13 @@ class admin_setting_searchsetupinfo extends admin_setting {
         $return = '';
         $brtag = html_writer::empty_tag('br');
 
-        // Available search areas.
         $searchareas = \core_search\manager::get_search_areas_list();
-        $anyenabled = false;
+        $anyenabled = !empty(\core_search\manager::get_search_areas_list(true));
         $anyindexed = false;
         foreach ($searchareas as $areaid => $searcharea) {
             list($componentname, $varname) = $searcharea->get_config_var_name();
-            if (!$anyenabled) {
-                $anyenabled = get_config($componentname, $varname . '_enabled');
-            }
-            if (!$anyindexed) {
-                $anyindexed = get_config($componentname, $varname . '_indexingstart');
-            }
-            if ($anyenabled && $anyindexed) {
+            if (get_config($componentname, $varname . '_indexingstart')) {
+                $anyindexed = true;
                 break;
             }
         }
@@ -9810,4 +10480,160 @@ class admin_setting_searchsetupinfo extends admin_setting {
         return highlight($query, $return);
     }
 
+}
+
+/**
+ * Used to validate the contents of SCSS code and ensuring they are parsable.
+ *
+ * It does not attempt to detect undefined SCSS variables because it is designed
+ * to be used without knowledge of other config/scss included.
+ *
+ * @license http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @copyright 2016 Dan Poltawski <dan@moodle.com>
+ */
+class admin_setting_scsscode extends admin_setting_configtextarea {
+
+    /**
+     * Validate the contents of the SCSS to ensure its parsable. Does not
+     * attempt to detect undefined scss variables.
+     *
+     * @param string $data The scss code from text field.
+     * @return mixed bool true for success or string:error on failure.
+     */
+    public function validate($data) {
+        if (empty($data)) {
+            return true;
+        }
+
+        $scss = new core_scss();
+        try {
+            $scss->compile($data);
+        } catch (Leafo\ScssPhp\Exception\ParserException $e) {
+            return get_string('scssinvalid', 'admin', $e->getMessage());
+        } catch (Leafo\ScssPhp\Exception\CompilerException $e) {
+            // Silently ignore this - it could be a scss variable defined from somewhere
+            // else which we are not examining here.
+            return true;
+        }
+
+        return true;
+    }
+}
+
+
+/**
+ * Administration setting to define a list of file types.
+ *
+ * @copyright 2016 Jonathon Fowler <fowlerj@usq.edu.au>
+ * @copyright 2017 David Mudrák <david@moodle.com>
+ * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+class admin_setting_filetypes extends admin_setting_configtext {
+
+    /** @var array Allow selection from these file types only. */
+    protected $onlytypes = [];
+
+    /** @var bool Allow selection of 'All file types' (will be stored as '*'). */
+    protected $allowall = true;
+
+    /** @var core_form\filetypes_util instance to use as a helper. */
+    protected $util = null;
+
+    /**
+     * Constructor.
+     *
+     * @param string $name Unique ascii name like 'mycoresetting' or 'myplugin/mysetting'
+     * @param string $visiblename Localised label of the setting
+     * @param string $description Localised description of the setting
+     * @param string $defaultsetting Default setting value.
+     * @param array $options Setting widget options, an array with optional keys:
+     *   'onlytypes' => array Allow selection from these file types only; for example ['onlytypes' => ['web_image']].
+     *   'allowall' => bool Allow to select 'All file types', defaults to true. Does not apply if onlytypes are set.
+     */
+    public function __construct($name, $visiblename, $description, $defaultsetting = '', array $options = []) {
+
+        parent::__construct($name, $visiblename, $description, $defaultsetting, PARAM_RAW);
+
+        if (array_key_exists('onlytypes', $options) && is_array($options['onlytypes'])) {
+            $this->onlytypes = $options['onlytypes'];
+        }
+
+        if (!$this->onlytypes && array_key_exists('allowall', $options)) {
+            $this->allowall = (bool)$options['allowall'];
+        }
+
+        $this->util = new \core_form\filetypes_util();
+    }
+
+    /**
+     * Normalize the user's input and write it to the database as comma separated list.
+     *
+     * Comma separated list as a text representation of the array was chosen to
+     * make this compatible with how the $CFG->courseoverviewfilesext values are stored.
+     *
+     * @param string $data Value submitted by the admin.
+     * @return string Epty string if all good, error message otherwise.
+     */
+    public function write_setting($data) {
+        return parent::write_setting(implode(',', $this->util->normalize_file_types($data)));
+    }
+
+    /**
+     * Validate data before storage
+     *
+     * @param string $data The setting values provided by the admin
+     * @return bool|string True if ok, the string if error found
+     */
+    public function validate($data) {
+
+        // No need to call parent's validation here as we are PARAM_RAW.
+
+        if ($this->util->is_whitelisted($data, $this->onlytypes)) {
+            return true;
+
+        } else {
+            $troublemakers = $this->util->get_not_whitelisted($data, $this->onlytypes);
+            return get_string('filetypesnotwhitelisted', 'core_form', implode(' ', $troublemakers));
+        }
+    }
+
+    /**
+     * Return an HTML string for the setting element.
+     *
+     * @param string $data The current setting value
+     * @param string $query Admin search query to be highlighted
+     * @return string HTML to be displayed
+     */
+    public function output_html($data, $query='') {
+        global $OUTPUT, $PAGE;
+
+        $default = $this->get_defaultsetting();
+        $context = (object) [
+            'id' => $this->get_id(),
+            'name' => $this->get_full_name(),
+            'value' => $data,
+            'descriptions' => $this->util->describe_file_types($data),
+        ];
+        $element = $OUTPUT->render_from_template('core_admin/setting_filetypes', $context);
+
+        $PAGE->requires->js_call_amd('core_form/filetypes', 'init', [
+            $this->get_id(),
+            $this->visiblename,
+            $this->onlytypes,
+            $this->allowall,
+        ]);
+
+        return format_admin_setting($this, $this->visiblename, $element, $this->description, true, '', $default, $query);
+    }
+
+    /**
+     * Should the values be always displayed in LTR mode?
+     *
+     * We always return true here because these values are not RTL compatible.
+     *
+     * @return bool True because these values are not RTL compatible.
+     */
+    public function get_force_ltr() {
+        return true;
+    }
 }

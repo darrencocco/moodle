@@ -216,7 +216,6 @@ class external_api {
                     require_sesskey();
                 }
             }
-
             // Validate params, this also sorts the params properly, we need the correct order in the next part.
             $callable = array($externalfunctioninfo->classname, 'validate_parameters');
             $params = call_user_func($callable,
@@ -239,6 +238,7 @@ class external_api {
         } catch (Exception $e) {
             $exception = get_exception_info($e);
             unset($exception->a);
+            $exception->backtrace = format_backtrace($exception->backtrace, true);
             if (!debugging('', DEBUG_DEVELOPER)) {
                 unset($exception->debuginfo);
                 unset($exception->backtrace);
@@ -316,7 +316,7 @@ class external_api {
                     }
                     if ($subdesc->required == VALUE_DEFAULT) {
                         try {
-                            $result[$key] = self::validate_parameters($subdesc, $subdesc->default);
+                            $result[$key] = static::validate_parameters($subdesc, $subdesc->default);
                         } catch (invalid_parameter_exception $e) {
                             //we are only interested by exceptions returned by validate_param() and validate_parameters()
                             //(in order to build the path to the faulty attribut)
@@ -325,7 +325,7 @@ class external_api {
                     }
                 } else {
                     try {
-                        $result[$key] = self::validate_parameters($subdesc, $params[$key]);
+                        $result[$key] = static::validate_parameters($subdesc, $params[$key]);
                     } catch (invalid_parameter_exception $e) {
                         //we are only interested by exceptions returned by validate_param() and validate_parameters()
                         //(in order to build the path to the faulty attribut)
@@ -346,7 +346,7 @@ class external_api {
             }
             $result = array();
             foreach ($params as $param) {
-                $result[] = self::validate_parameters($description->content, $param);
+                $result[] = static::validate_parameters($description->content, $param);
             }
             return $result;
 
@@ -409,7 +409,7 @@ class external_api {
                     if ($subdesc instanceof external_value) {
                         if ($subdesc->required == VALUE_DEFAULT) {
                             try {
-                                    $result[$key] = self::clean_returnvalue($subdesc, $subdesc->default);
+                                    $result[$key] = static::clean_returnvalue($subdesc, $subdesc->default);
                             } catch (invalid_response_exception $e) {
                                 //build the path to the faulty attribut
                                 throw new invalid_response_exception($key." => ".$e->getMessage() . ': ' . $e->debuginfo);
@@ -418,7 +418,7 @@ class external_api {
                     }
                 } else {
                     try {
-                        $result[$key] = self::clean_returnvalue($subdesc, $response[$key]);
+                        $result[$key] = static::clean_returnvalue($subdesc, $response[$key]);
                     } catch (invalid_response_exception $e) {
                         //build the path to the faulty attribut
                         throw new invalid_response_exception($key." => ".$e->getMessage() . ': ' . $e->debuginfo);
@@ -436,7 +436,7 @@ class external_api {
             }
             $result = array();
             foreach ($response as $param) {
-                $result[] = self::clean_returnvalue($description->content, $param);
+                $result[] = static::clean_returnvalue($description->content, $param);
             }
             return $result;
 
@@ -724,6 +724,7 @@ function external_generate_token($tokentype, $serviceorid, $userid, $contextorid
     if (!empty($iprestriction)) {
         $newtoken->iprestriction = $iprestriction;
     }
+    $newtoken->privatetoken = null;
     $DB->insert_record('external_tokens', $newtoken);
     return $newtoken->token;
 }
@@ -815,11 +816,14 @@ class external_format_value extends external_value {
      *
      * @param string $textfieldname Name of the text field
      * @param int $required if VALUE_REQUIRED then set standard default FORMAT_HTML
+     * @param int $default Default value.
      * @since Moodle 2.3
      */
-    public function __construct($textfieldname, $required = VALUE_REQUIRED) {
+    public function __construct($textfieldname, $required = VALUE_REQUIRED, $default = null) {
 
-        $default = ($required == VALUE_DEFAULT) ? FORMAT_HTML : null;
+        if ($default == null && $required == VALUE_DEFAULT) {
+            $default = FORMAT_HTML;
+        }
 
         $desc = $textfieldname . ' format (' . FORMAT_HTML . ' = HTML, '
                 . FORMAT_MOODLE . ' = MOODLE, '
@@ -1050,17 +1054,24 @@ function external_generate_token_for_current_user($service) {
             $token->externalserviceid = $service->id;
             // MDL-43119 Token valid for 3 months (12 weeks).
             $token->validuntil = $token->timecreated + 12 * WEEKSECS;
+            $token->iprestriction = null;
+            $token->sid = null;
+            $token->lastaccess = null;
+            // Generate the private token, it must be transmitted only via https.
+            $token->privatetoken = random_string(64);
             $token->id = $DB->insert_record('external_tokens', $token);
 
+            $eventtoken = clone $token;
+            $eventtoken->privatetoken = null;
             $params = array(
-                'objectid' => $token->id,
+                'objectid' => $eventtoken->id,
                 'relateduserid' => $USER->id,
                 'other' => array(
                     'auto' => true
                 )
             );
             $event = \core\event\webservice_token_created::create($params);
-            $event->add_record_snapshot('external_tokens', $token);
+            $event->add_record_snapshot('external_tokens', $eventtoken);
             $event->trigger();
         } else {
             throw new moodle_exception('cannotcreatetoken', 'webservice', '', $service->shortname);
@@ -1069,6 +1080,30 @@ function external_generate_token_for_current_user($service) {
     return $token;
 }
 
+/**
+ * Set the last time a token was sent and trigger the \core\event\webservice_token_sent event.
+ *
+ * This function is used when a token is generated by the user via login/token.php or admin/tool/mobile/launch.php.
+ * In order to protect the privatetoken, we remove it from the event params.
+ *
+ * @param  stdClass $token token object
+ * @since  Moodle 3.2
+ */
+function external_log_token_request($token) {
+    global $DB;
+
+    $token->privatetoken = null;
+
+    // Log token access.
+    $DB->set_field('external_tokens', 'lastaccess', time(), array('id' => $token->id));
+
+    $params = array(
+        'objectid' => $token->id,
+    );
+    $event = \core\event\webservice_token_sent::create($params);
+    $event->add_record_snapshot('external_tokens', $token);
+    $event->trigger();
+}
 
 /**
  * Singleton to handle the external settings.
@@ -1101,9 +1136,11 @@ class external_settings {
      * Constructor - protected - can not be instanciated
      */
     protected function __construct() {
-        if (!defined('AJAX_SCRIPT') && !defined('CLI_SCRIPT') && !defined('WS_SERVER')) {
+        if ((AJAX_SCRIPT == false) && (CLI_SCRIPT == false) && (WS_SERVER == false)) {
             // For normal pages, the default should match the default for format_text.
             $this->filter = true;
+            // Use pluginfile.php for web requests.
+            $this->file = 'pluginfile.php';
         }
     }
 
@@ -1116,7 +1153,7 @@ class external_settings {
     /**
      * Return only one instance
      *
-     * @return object
+     * @return \external_settings
      */
     public static function get_instance() {
         if (self::$instance === null) {
@@ -1274,6 +1311,10 @@ class external_util {
                 $file['mimetype'] = $areafile->get_mimetype();
                 $file['filesize'] = $areafile->get_filesize();
                 $file['timemodified'] = $areafile->get_timemodified();
+                $file['isexternalfile'] = $areafile->is_external_file();
+                if ($file['isexternalfile']) {
+                    $file['repositorytype'] = $areafile->get_repository_type();
+                }
                 $fileitemid = $useitemidinurl ? $areafile->get_itemid() : null;
                 $file['fileurl'] = moodle_url::make_webservice_pluginfile_url($contextid, $component, $filearea,
                                     $fileitemid, $areafile->get_filepath(), $areafile->get_filename())->out(false);
@@ -1310,11 +1351,72 @@ class external_files extends external_multiple_structure {
                     'fileurl' => new external_value(PARAM_URL, 'Downloadable file url.', VALUE_OPTIONAL),
                     'timemodified' => new external_value(PARAM_INT, 'Time modified.', VALUE_OPTIONAL),
                     'mimetype' => new external_value(PARAM_RAW, 'File mime type.', VALUE_OPTIONAL),
+                    'isexternalfile' => new external_value(PARAM_BOOL, 'Whether is an external file.', VALUE_OPTIONAL),
+                    'repositorytype' => new external_value(PARAM_PLUGIN, 'The repository type for external files.', VALUE_OPTIONAL),
                 ),
                 'File.'
             ),
             $desc,
             $required
         );
+    }
+
+    /**
+     * Return the properties ready to be used by an exporter.
+     *
+     * @return array properties
+     * @since  Moodle 3.3
+     */
+    public static function get_properties_for_exporter() {
+        return [
+            'filename' => array(
+                'type' => PARAM_FILE,
+                'description' => 'File name.',
+                'optional' => true,
+                'null' => NULL_NOT_ALLOWED,
+            ),
+            'filepath' => array(
+                'type' => PARAM_PATH,
+                'description' => 'File path.',
+                'optional' => true,
+                'null' => NULL_NOT_ALLOWED,
+            ),
+            'filesize' => array(
+                'type' => PARAM_INT,
+                'description' => 'File size.',
+                'optional' => true,
+                'null' => NULL_NOT_ALLOWED,
+            ),
+            'fileurl' => array(
+                'type' => PARAM_URL,
+                'description' => 'Downloadable file url.',
+                'optional' => true,
+                'null' => NULL_NOT_ALLOWED,
+            ),
+            'timemodified' => array(
+                'type' => PARAM_INT,
+                'description' => 'Time modified.',
+                'optional' => true,
+                'null' => NULL_NOT_ALLOWED,
+            ),
+            'mimetype' => array(
+                'type' => PARAM_RAW,
+                'description' => 'File mime type.',
+                'optional' => true,
+                'null' => NULL_NOT_ALLOWED,
+            ),
+            'isexternalfile' => array(
+                'type' => PARAM_BOOL,
+                'description' => 'Whether is an external file.',
+                'optional' => true,
+                'null' => NULL_NOT_ALLOWED,
+            ),
+            'repositorytype' => array(
+                'type' => PARAM_PLUGIN,
+                'description' => 'The repository type for the external files.',
+                'optional' => true,
+                'null' => NULL_ALLOWED,
+            ),
+        ];
     }
 }

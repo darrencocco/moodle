@@ -66,6 +66,8 @@ class restore_assign_activity_structure_step extends restore_activity_structure_
                                                    '/activity/assign/userflags/userflag');
             $paths[] = $userflag;
         }
+
+        $paths[] = new restore_path_element('assign_override', '/activity/assign/overrides/override');
         $paths[] = new restore_path_element('assign_plugin_config',
                                             '/activity/assign/plugin_configs/plugin_config');
 
@@ -96,6 +98,12 @@ class restore_assign_activity_structure_step extends restore_activity_structure_
             $this->includesubmission = false;
         }
 
+        // Reset revealidentities if blindmarking with no user data (MDL-43796).
+        $userinfo = $this->get_setting_value('userinfo');
+        if (!$userinfo && $data->blindmarking) {
+            $data->revealidentities = 0;
+        }
+
         if (!empty($data->teamsubmissiongroupingid)) {
             $data->teamsubmissiongroupingid = $this->get_mappingid('grouping',
                                                                    $data->teamsubmissiongroupingid);
@@ -105,6 +113,9 @@ class restore_assign_activity_structure_step extends restore_activity_structure_
 
         if (!isset($data->cutoffdate)) {
             $data->cutoffdate = 0;
+        }
+        if (!isset($data->gradingduedate)) {
+            $data->gradingduedate = 0;
         }
         if (!isset($data->markingworkflow)) {
             $data->markingworkflow = 0;
@@ -351,6 +362,44 @@ class restore_assign_activity_structure_step extends restore_activity_structure_
                 $this->add_related_files($component, $area, null);
             }
         }
+    }
+
+    /**
+     * Process a assign override restore
+     * @param object $data The data in object form
+     * @return void
+     */
+    protected function process_assign_override($data) {
+        global $DB;
+
+        $data = (object)$data;
+        $oldid = $data->id;
+
+        // Based on userinfo, we'll restore user overides or no.
+        $userinfo = $this->get_setting_value('userinfo');
+
+        // Skip user overrides if we are not restoring userinfo.
+        if (!$userinfo && !is_null($data->userid)) {
+            return;
+        }
+
+        $data->assignid = $this->get_new_parentid('assign');
+
+        if (!is_null($data->userid)) {
+            $data->userid = $this->get_mappingid('user', $data->userid);
+        }
+        if (!is_null($data->groupid)) {
+            $data->groupid = $this->get_mappingid('group', $data->groupid);
+        }
+
+        $data->allowsubmissionsfromdate = $this->apply_date_offset($data->allowsubmissionsfromdate);
+        $data->duedate = $this->apply_date_offset($data->duedate);
+        $data->cutoffdate = $this->apply_date_offset($data->cutoffdate);
+
+        $newitemid = $DB->insert_record('assign_overrides', $data);
+
+        // Add mapping, restore of logs needs it.
+        $this->set_mapping('assign_override', $oldid, $newitemid);
     }
 
     /**

@@ -33,6 +33,9 @@ define(['jquery', 'core/ajax', 'core/log', 'core/notification', 'core/templates'
      */
     var findDocsSection = function(templateSource, templateName) {
 
+        if (!templateSource) {
+            return false;
+        }
         // Find the comment section marked with @template component/template.
         var marker = "@template " + templateName,
             i = 0,
@@ -123,7 +126,8 @@ define(['jquery', 'core/ajax', 'core/log', 'core/notification', 'core/templates'
             args: {
                     component: component,
                     template: name,
-                    themename: config.theme
+                    themename: config.theme,
+                    includecomments: true
             }
         }, {
             methodname: 'tool_templatelibrary_load_canonical_template',

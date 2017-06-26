@@ -1281,11 +1281,11 @@ function quiz_question_edit_button($cmid, $question, $returnurl, $contentafteric
             (question_has_capability_on($question, 'edit', $question->category) ||
                     question_has_capability_on($question, 'move', $question->category))) {
         $action = $stredit;
-        $icon = '/t/edit';
+        $icon = 't/edit';
     } else if (!empty($question->id) &&
             question_has_capability_on($question, 'view', $question->category)) {
         $action = $strview;
-        $icon = '/i/info';
+        $icon = 'i/info';
     }
 
     // Build the icon.
@@ -1295,8 +1295,8 @@ function quiz_question_edit_button($cmid, $question, $returnurl, $contentafteric
         }
         $questionparams = array('returnurl' => $returnurl, 'cmid' => $cmid, 'id' => $question->id);
         $questionurl = new moodle_url("$CFG->wwwroot/question/question.php", $questionparams);
-        return '<a title="' . $action . '" href="' . $questionurl->out() . '" class="questioneditbutton"><img src="' .
-                $OUTPUT->pix_url($icon) . '" alt="' . $action . '" />' . $contentaftericon .
+        return '<a title="' . $action . '" href="' . $questionurl->out() . '" class="questioneditbutton">' .
+                $OUTPUT->pix_icon($icon, $action) . $contentaftericon .
                 '</a>';
     } else if ($contentaftericon) {
         return '<span class="questioneditbutton">' . $contentaftericon . '</span>';
@@ -1487,7 +1487,8 @@ function quiz_send_confirmation($recipient, $a) {
     $a->userusername = $recipient->username;
 
     // Prepare the message.
-    $eventdata = new stdClass();
+    $eventdata = new \core\message\message();
+    $eventdata->courseid          = $a->courseid;
     $eventdata->component         = 'mod_quiz';
     $eventdata->name              = 'confirmation';
     $eventdata->notification      = 1;
@@ -1523,7 +1524,8 @@ function quiz_send_notification($recipient, $submitter, $a) {
     $a->userusername = $recipient->username;
 
     // Prepare the message.
-    $eventdata = new stdClass();
+    $eventdata = new \core\message\message();
+    $eventdata->courseid          = $a->courseid;
     $eventdata->component         = 'mod_quiz';
     $eventdata->name              = 'submission';
     $eventdata->notification      = 1;
@@ -1596,6 +1598,7 @@ function quiz_send_notification_messages($course, $quiz, $attempt, $context, $cm
 
     $a = new stdClass();
     // Course info.
+    $a->courseid        = $course->id;
     $a->coursename      = $course->fullname;
     $a->courseshortname = $course->shortname;
     // Quiz info.
@@ -1670,6 +1673,7 @@ function quiz_send_overdue_message($attemptobj) {
 
     $a = new stdClass();
     // Course info.
+    $a->courseid           = $attemptobj->get_course()->id;
     $a->coursename         = format_string($attemptobj->get_course()->fullname);
     $a->courseshortname    = format_string($attemptobj->get_course()->shortname);
     // Quiz info.
@@ -1687,7 +1691,8 @@ function quiz_send_overdue_message($attemptobj) {
     $a->studentusername    = $submitter->username;
 
     // Prepare the message.
-    $eventdata = new stdClass();
+    $eventdata = new \core\message\message();
+    $eventdata->courseid          = $a->courseid;
     $eventdata->component         = 'mod_quiz';
     $eventdata->name              = 'attempt_overdue';
     $eventdata->notification      = 1;
@@ -1930,7 +1935,7 @@ class qubaids_for_quiz extends qubaid_join {
         }
 
         if ($onlyfinished) {
-            $where .= ' AND state == :statefinished';
+            $where .= ' AND state = :statefinished';
             $params['statefinished'] = quiz_attempt::FINISHED;
         }
 

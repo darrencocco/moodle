@@ -45,7 +45,8 @@ class behat_partial_named_selector extends \Behat\Mink\Selector\PartialNamedSele
             $this->registerNamedXpath($name, $xpath);
         }
 
-        // Call the constructor after adding any new selector or replacement values.
+        $this->registerReplacement('%iconMatch%', "(contains(concat(' ', @class, ' '), ' icon ') or name() = 'img')");
+        $this->registerReplacement('%imgAltMatch%', './/*[%iconMatch% and (%altMatch% or %titleMatch%)]');
         parent::__construct();
     }
 
@@ -58,7 +59,10 @@ class behat_partial_named_selector extends \Behat\Mink\Selector\PartialNamedSele
         'css_element' => 'css_element',
         'dialogue' => 'dialogue',
         'fieldset' => 'fieldset',
+        'icon' => 'icon',
         'list_item' => 'list_item',
+        'message_area_region' => 'message_area_region',
+        'message_area_region_content' => 'message_area_region_content',
         'question' => 'question',
         'region' => 'region',
         'section' => 'section',
@@ -82,9 +86,13 @@ class behat_partial_named_selector extends \Behat\Mink\Selector\PartialNamedSele
         'fieldset' => 'fieldset',
         'file' => 'file',
         'filemanager' => 'filemanager',
+        'icon' => 'icon',
         'link' => 'link',
         'link_or_button' => 'link_or_button',
         'list_item' => 'list_item',
+        'message_area_action' => 'message_area_action',
+        'message_area_region' => 'message_area_region',
+        'message_area_region_content' => 'message_area_region_content',
         'optgroup' => 'optgroup',
         'option' => 'option',
         'question' => 'question',
@@ -124,6 +132,9 @@ XPATH
 .//div[contains(concat(' ', normalize-space(@class), ' '), ' yui-dialog ') and
     normalize-space(descendant::div[@class='hd']) = %locator%]
 XPATH
+        , 'icon' => <<<XPATH
+.//*[contains(concat(' ', normalize-space(@class), ' '), ' icon ') and ( contains(normalize-space(@title), %locator%))]
+XPATH
         , 'list_item' => <<<XPATH
 .//li[contains(normalize-space(.), %locator%) and not(.//li[contains(normalize-space(.), %locator%)])]
 XPATH
@@ -153,6 +164,15 @@ XPATH
         , 'form_row' => <<<XPATH
 .//*[self::label or self::div[contains(concat(' ', @class, ' '), ' fstaticlabel ')]][contains(., %locator%)]/ancestor::*[contains(concat(' ', @class, ' '), ' fitem ')]
 XPATH
+        , 'message_area_region' => <<<XPATH
+.//div[@data-region='messaging-area']/descendant::*[@data-region = %locator%]
+XPATH
+        , 'message_area_region_content' => <<<XPATH
+.//div[@data-region='messaging-area']/descendant::*[@data-region-content = %locator%]
+XPATH
+        , 'message_area_action' => <<<XPATH
+.//div[@data-region='messaging-area']/descendant::*[@data-action = %locator%]
+XPATH
     );
 
     protected static $customselectors = [
@@ -172,6 +192,11 @@ XPATH
             'filemanager' => <<<XPATH
 .//*[@data-fieldtype = 'filemanager' or @data-fieldtype = 'filepicker']
     /descendant::input[@id = //label[contains(normalize-space(string(.)), %locator%)]/@for]
+XPATH
+        ,
+             'passwordunmask' => <<<XPATH
+.//*[@data-passwordunmask='wrapper']
+    /descendant::input[@id = %locator% or @id = //label[contains(normalize-space(string(.)), %locator%)]/@for]
 XPATH
         ],
     ];

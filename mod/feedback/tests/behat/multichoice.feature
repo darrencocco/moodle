@@ -22,9 +22,9 @@ Feature: Testing multichoice questions in feedback
       | activity   | name                | course | idnumber    |
       | feedback   | Learning experience | C1     | feedback0   |
     And I log in as "teacher1"
-    And I follow "Course 1"
+    And I am on "Course 1" course homepage
     And I follow "Learning experience"
-    And I follow "Edit questions"
+    And I click on "Edit questions" "link" in the "[role=main]" "css_element"
 
   @javascript
   Scenario: Non-rated single-answer multiple choice questions in feedback
@@ -57,7 +57,7 @@ Feature: Testing multichoice questions in feedback
       | Contents | this is the third page of the feedback |
     And I log out
     And I log in as "student1"
-    And I follow "Course 1"
+    And I am on "Course 1" course homepage
     And I follow "Learning experience"
     And I follow "Answer the questions..."
     # Examine the first page, select nothing, go to the next page
@@ -124,7 +124,7 @@ Feature: Testing multichoice questions in feedback
     # Student 2 tries to trick - he answers the third question and then
     # goes back and changes dependency question. Analysis should not show this answer!
     And I log in as "student2"
-    And I follow "Course 1"
+    And I am on "Course 1" course homepage
     And I follow "Learning experience"
     And I follow "Answer the questions..."
     And I set the field "option a" to "1"
@@ -139,9 +139,9 @@ Feature: Testing multichoice questions in feedback
     And I log out
     # Login as teacher and check analysis
     And I log in as "teacher1"
-    And I follow "Course 1"
+    And I am on "Course 1" course homepage
     And I follow "Learning experience"
-    And I follow "Analysis"
+    And I navigate to "Analysis" in current page administration
     And I should see "Submitted answers: 2"
     And I should see "Questions: 3"
     And I show chart data for the "multichoice1" feedback
@@ -157,7 +157,7 @@ Feature: Testing multichoice questions in feedback
     And I should not see "%" in the "option h" "table_row"
     And I should see "1 (100.00 %)" in the "option i" "table_row"
     # Change the settings so we don't analyse empty submits
-    And I follow "Edit questions"
+    And I click on "Edit questions" "link" in the "[role=main]" "css_element"
     And I open the action menu in "//div[contains(@class, 'feedback_itemlist') and contains(.,'multichoice1')]" "xpath_element"
     And I choose "Edit question" in the open action menu
     And I set the field "Do not analyse empty submits" to "Yes"
@@ -201,7 +201,7 @@ Feature: Testing multichoice questions in feedback
     And I log out
     # Login as the first student.
     And I log in as "student1"
-    And I follow "Course 1"
+    And I am on "Course 1" course homepage
     And I follow "Learning experience"
     And I follow "Answer the questions..."
     # Examine the first page, select nothing, go to the next page
@@ -266,7 +266,7 @@ Feature: Testing multichoice questions in feedback
     # Student 2 tries to trick - he answers the third question and then
     # goes back and changes dependency question. Analysis should not show this answer!
     And I log in as "student2"
-    And I follow "Course 1"
+    And I am on "Course 1" course homepage
     And I follow "Learning experience"
     And I follow "Answer the questions..."
     And I set the field "option a" to "1"
@@ -283,9 +283,9 @@ Feature: Testing multichoice questions in feedback
     And I log out
     # Login as teacher and check analysis
     And I log in as "teacher1"
-    And I follow "Course 1"
+    And I am on "Course 1" course homepage
     And I follow "Learning experience"
-    And I follow "Analysis"
+    And I navigate to "Analysis" in current page administration
     And I should see "Submitted answers: 2"
     And I should see "Questions: 3"
     And I show chart data for the "multichoice1" feedback
@@ -301,7 +301,7 @@ Feature: Testing multichoice questions in feedback
     And I should not see "%" in the "option h" "table_row"
     And I should see "1 (100.00 %)" in the "option i" "table_row"
     # Change the settings so we don't analyse empty submits
-    And I follow "Edit questions"
+    And I click on "Edit questions" "link" in the "[role=main]" "css_element"
     And I open the action menu in "//div[contains(@class, 'feedback_itemlist') and contains(.,'multichoice1')]" "xpath_element"
     And I choose "Edit question" in the open action menu
     And I set the field "Do not analyse empty submits" to "Yes"
@@ -343,7 +343,7 @@ Feature: Testing multichoice questions in feedback
       | Contents | this is the third page of the feedback |
     And I log out
     And I log in as "student1"
-    And I follow "Course 1"
+    And I am on "Course 1" course homepage
     And I follow "Learning experience"
     And I follow "Answer the questions..."
     # Examine the first page, select nothing, go to the next page
@@ -391,7 +391,7 @@ Feature: Testing multichoice questions in feedback
     # Student 2 tries to trick - he answers the third question and then
     # goes back and changes dependency question. Analysis should not show this answer!
     And I log in as "student2"
-    And I follow "Course 1"
+    And I am on "Course 1" course homepage
     And I follow "Learning experience"
     And I follow "Answer the questions..."
     And I set the field "this is a multiple choice 1" to "option a"
@@ -406,9 +406,9 @@ Feature: Testing multichoice questions in feedback
     And I log out
     # Login as teacher and check analysis
     And I log in as "teacher1"
-    And I follow "Course 1"
+    And I am on "Course 1" course homepage
     And I follow "Learning experience"
-    And I follow "Analysis"
+    And I navigate to "Analysis" in current page administration
     And I should see "Submitted answers: 2"
     And I should see "Questions: 3"
     And I show chart data for the "multichoice1" feedback
@@ -424,7 +424,7 @@ Feature: Testing multichoice questions in feedback
     And I should not see "%" in the "option h" "table_row"
     And I should see "1 (100.00 %)" in the "option i" "table_row"
     # Change the settings so we don't analyse empty submits
-    And I follow "Edit questions"
+    And I click on "Edit questions" "link" in the "[role=main]" "css_element"
     And I open the action menu in "//div[contains(@class, 'feedback_itemlist') and contains(.,'multichoice1')]" "xpath_element"
     And I choose "Edit question" in the open action menu
     And I set the field "Do not analyse empty submits" to "Yes"
