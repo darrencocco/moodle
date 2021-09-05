@@ -40,17 +40,33 @@ class qtype_multichoice extends question_type {
     public function get_question_options($question) {
         global $DB, $OUTPUT;
 
-        $question->options = $DB->get_record('qtype_multichoice_options', ['questionid' => $question->id]);
+        $qoptionscache = cache::make('qtype_multichoice', 'options');
+        $qoptions = $qoptionscache->get($question->id);
 
-        if ($question->options === false) {
-            // If this has happened, then we have a problem.
-            // For the user to be able to edit or delete this question, we need options.
-            debugging("Question ID {$question->id} was missing an options record. Using default.", DEBUG_DEVELOPER);
+        // Cache miss
+        if ($qoptions === false) {
+            $qoptions = $DB->get_record('qtype_multichoice_options', ['questionid' => $question->id]);
 
-            $question->options = $this->create_default_options($question);
+            if ($qoptions === false) {
+                // If this has happened, then we have a problem.
+                // For the user to be able to edit or delete this question, we need options.
+                debugging("Question ID {$question->id} was missing an options record. Using default.", DEBUG_DEVELOPER);
+
+                $question->options = $this->create_default_options($question);
+            }
+
+            $qoptionscache->set($question->id, $qoptions);
         }
 
+        parent::merge_options($question, $qoptions);
+
         parent::get_question_options($question);
+    }
+
+    public function remove_from_cache(stdClass $question): void {
+        parent::remove_from_cache($question);
+        $qoptionscache = cache::make('qtype_multichoice', 'options');
+        $qoptionscache->delete($question->id);
     }
 
     /**

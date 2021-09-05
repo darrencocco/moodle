@@ -851,53 +851,114 @@ class question_type {
     public function get_question_options($question) {
         global $CFG, $DB, $OUTPUT;
 
-        if (!isset($question->options)) {
-            $question->options = new stdClass();
-        }
+        $qoptionscache = cache::make('core_question', 'options');
+        $qoptions = $qoptionscache->get($question->id);
 
-        $extraquestionfields = $this->extra_question_fields();
-        if (is_array($extraquestionfields)) {
-            $question_extension_table = array_shift($extraquestionfields);
-            $extra_data = $DB->get_record($question_extension_table,
+        // Cache miss
+        if ($qoptions === false) {
+            $qoptions = new \stdClass();
+            $extraquestionfields = $this->extra_question_fields();
+            if (is_array($extraquestionfields)) {
+                $question_extension_table = array_shift($extraquestionfields);
+                $extra_data = $DB->get_record($question_extension_table,
                     array($this->questionid_column_name() => $question->id),
                     implode(', ', $extraquestionfields));
-            if ($extra_data) {
-                foreach ($extraquestionfields as $field) {
-                    $question->options->$field = $extra_data->$field;
-                }
-            } else {
-                echo $OUTPUT->notification('Failed to load question options from the table ' .
+                if ($extra_data) {
+                    foreach ($extraquestionfields as $field) {
+                        $qoptions->$field = $extra_data->$field;
+                    }
+                } else {
+                    echo $OUTPUT->notification('Failed to load question options from the table ' .
                         $question_extension_table . ' for questionid ' . $question->id);
-                return false;
+                    return false;
+                }
             }
-        }
 
-        $extraanswerfields = $this->extra_answer_fields();
-        if (is_array($extraanswerfields)) {
-            $answerextensiontable = array_shift($extraanswerfields);
-            // Use LEFT JOIN in case not every answer has extra data.
-            $question->options->answers = $DB->get_records_sql("
+            $extraanswerfields = $this->extra_answer_fields();
+            if (is_array($extraanswerfields)) {
+                $answerextensiontable = array_shift($extraanswerfields);
+                // Use LEFT JOIN in case not every answer has extra data.
+                $qoptions->answers = $DB->get_records_sql("
                     SELECT qa.*, qax." . implode(', qax.', $extraanswerfields) . '
                     FROM {question_answers} qa ' . "
                     LEFT JOIN {{$answerextensiontable}} qax ON qa.id = qax.answerid
                     WHERE qa.question = ?
                     ORDER BY qa.id", array($question->id));
-            if (!$question->options->answers) {
-                echo $OUTPUT->notification('Failed to load question answers from the table ' .
+                if (!$qoptions->answers) {
+                    echo $OUTPUT->notification('Failed to load question answers from the table ' .
                         $answerextensiontable . 'for questionid ' . $question->id);
-                return false;
-            }
-        } else {
-            // Don't check for success or failure because some question types do
-            // not use the answers table.
-            $question->options->answers = $DB->get_records('question_answers',
+                    return false;
+                }
+            } else {
+                // Don't check for success or failure because some question types do
+                // not use the answers table.
+                $qoptions->answers = $DB->get_records('question_answers',
                     array('question' => $question->id), 'id ASC');
+            }
+
+            $qoptionscache->set($question->is, $qoptions);
         }
 
         $question->hints = $DB->get_records('question_hints',
-                array('questionid' => $question->id), 'id ASC');
+            array('questionid' => $question->id), 'id ASC');
+
+        $this->merge_options($question, $qoptions);
 
         return true;
+    }
+
+    /**
+     * Merges a new set of qtype options data into the existing
+     * question definition.
+     *
+     * Appends new ones and overrides existing ones. This of course
+     * means that the content of the options is influenced by the
+     * call order of the get_question_options method.
+     *
+     * @param stdClass $question
+     * @param stdClass $additionalquestionoptions
+     */
+    public function merge_options(\stdClass $question, \stdClass $additionalquestionoptions): void {
+        if (!isset($question->options)) {
+            $question->options = new stdClass();
+        }
+        $question->options = $this->recursively_apply($question->options, $additionalquestionoptions);
+    }
+
+    protected function recursively_apply(\stdClass $a, \stdClass $b): \stdClass {
+        if (is_null($a)) {
+            return $b;
+        }
+        if (is_null($b)) {
+            return $a;
+        }
+        if (get_class($b) !== "\stdClass") {
+            return $b;
+        }
+        $akeys = array_keys(get_object_vars($a));
+        $bkeys = array_keys(get_object_vars($b));
+        $keys = array_merge($akeys, $bkeys);
+
+        $returnvalue = new \stdClass();
+        foreach ($keys as $name) {
+            $returnvalue->$name = $this->recursively_apply(
+                $this->property_or_null($a, $name),
+                $this->property_or_null($b, $name));
+        }
+        return $returnvalue;
+    }
+
+    protected function property_or_null($a, $propertyname) {
+        if (isset($a->$propertyname)) {
+            return $a->$propertyname;
+        } else {
+            return null;
+        }
+    }
+
+    public function remove_from_cache(\stdClass $question): void {
+        $qoptionscache = cache::make('core_question', 'options');
+        $qoptionscache->delete($question->id);
     }
 
     /**

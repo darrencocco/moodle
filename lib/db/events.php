@@ -75,6 +75,10 @@ $observers = array(
         'eventname'   => '\core\event\course_module_completion_updated',
         'callback'    => 'core_competency\api::observe_course_module_completion_updated',
     ),
+    [
+        'eventname'   => '\core\event\question_updated',
+        'callback'    => '\core_question\event_observers\question::remove_from_options_cache'
+    ]
 );
 
 // List of all events triggered by Moodle can be found using Events list report.
