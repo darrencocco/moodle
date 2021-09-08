@@ -165,9 +165,8 @@ function quiz_start_new_attempt($quizobj, $quba, $attempt, $attemptnumber, $time
     $qubaids = new \mod_quiz\question\qubaids_for_users_attempts(
             $quizobj->get_quizid(), $attempt->userid);
 
-    // Fully load all the questions in this quiz.
+    // Partially load all the questions in this quiz.
     $quizobj->preload_questions();
-    $quizobj->load_questions();
 
     // First load all the non-random questions.
     $randomfound = false;
@@ -183,10 +182,7 @@ function quiz_start_new_attempt($quizobj, $quba, $attempt, $attemptnumber, $time
             $randomfound = true;
             continue;
         }
-        if (!$quizobj->get_quiz()->shuffleanswers) {
-            $questiondata->options->shuffleanswers = false;
-        }
-        $questions[$slot] = question_bank::make_question($questiondata);
+        $questions[$slot] = question_bank::load_question($questiondata->id, $quizobj->get_quiz()->shuffleanswers);
     }
 
     // Then find a question to go in place of each random question.

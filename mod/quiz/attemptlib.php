@@ -339,7 +339,6 @@ class quiz {
                 throw new moodle_exception('cannotstartmissingquestion', 'quiz', $this->view_url());
             }
             $questions[$id] = $this->questions[$id];
-            $this->ensure_question_loaded($id);
         }
         return $questions;
     }
