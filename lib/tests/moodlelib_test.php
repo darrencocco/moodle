@@ -3080,6 +3080,19 @@ EOF;
             $this->assertSame($expectedname, $testname);
         }
 
+        // All of these configurations should resolve to just alternatename lastname.
+        $configarray = array();
+        $configarray[] = 'alternatename||firstname lastname';
+        $configarray[] = 'alternatename||firstname middlename||lastname';
+        $configarray[] = 'firstnamephonetic||middlename||alternatename lastname';
+
+        foreach ($configarray as $config) {
+            $CFG->fullnamedisplay = $config;
+            $expectedname = "$user->alternatename $user->lastname";
+            $testname = fullname($user);
+            $this->assertSame($expectedname, $testname);
+        }
+
         // Check to make sure that other characters are left in place.
         $configarray = array();
         $configarray['0'] = new stdClass();
@@ -3100,6 +3113,21 @@ EOF;
         $configarray['5'] = new stdClass();
         $configarray['5']->config = 'firstname "lastname"';
         $configarray['5']->expectedname = "$user->firstname \"$user->lastname\"";
+        $configarray['6'] = new stdClass();
+        $configarray['6']->config = 'alternatename||firstname, lastname';
+        $configarray['6']->expectedname = "$user->alternatename, $user->lastname";
+        $configarray['7'] = new stdClass();
+        $configarray['7']->config = 'alternatename||firstname (middlename) lastname';
+        $configarray['7']->expectedname = "$user->alternatename $user->lastname";
+        $configarray['8'] = new stdClass();
+        $configarray['8']->config = 'alternatename || firstname lastname';
+        $configarray['8']->expectedname = "$user->alternatename || $user->firstname $user->lastname";
+        $configarray['9'] = new stdClass();
+        $configarray['9']->config = 'firstname "firstnamephonetic||middlename||alternatename" lastname';
+        $configarray['9']->expectedname = "$user->firstname \"$user->alternatename\" $user->lastname";
+        $configarray['10'] = new stdClass();
+        $configarray['10']->config = 'lastname [alternatename||firstname]';
+        $configarray['10']->expectedname = "$user->lastname [$user->alternatename]";
 
         foreach ($configarray as $config) {
             $CFG->fullnamedisplay = $config->config;

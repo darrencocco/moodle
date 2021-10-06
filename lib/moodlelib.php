@@ -3589,6 +3589,10 @@ function fullname($user, $override=false) {
         }
     }
 
+    // If the template contains field identifiers joined by the || operator (e.g. template = alternatename||firstname lastname)
+    // then this will replace the contents of the template with the processed results (e.g. template = alternatename lastname).
+    process_template($template, $user);
+
     $requirednames = array();
     // With each name, see if it is in the display name template, and add it to the required names array if it is.
     foreach ($allnames as $allname) {
@@ -3634,6 +3638,37 @@ function fullname($user, $override=false) {
     }
     return $displayname;
 }
+
+/**
+ * Support field identifiers joined by the || operator such as alternatename||firstname format
+ * where it means pick alternatename first then firstname if alternatename has not been filled.
+ * This will remove the extra fields that don't need to be displayed.
+ *
+ * @param  string &$template The display format template.
+ * @param  stdClass $user A {@link $USER} object to get full name of.
+ * @return string Template
+ */
+function process_template(&$template, $user) {
+    // Check if the template contains valid field identifiers that needs processing.
+    if (!preg_match('/\w+(\|\|\w+)+/i', $template, $matches)) {
+        return $template;
+    }
+
+    $fields = explode('||', $matches[0]);
+    foreach ($fields as $field) {
+        // Check the fields to determine which would be the first valid one.
+        if (isset($user->$field) && (string)$user->$field != '') {
+            // Add backslashes to the || operator.
+            $pattern = str_replace('||', '\|\|', $matches[0]);
+            // Replace the chained fields with the appropriate field.
+            $template = preg_replace("/$pattern/", $field, $template);
+            // Match, replace, repeat until no matches found.
+            process_template($template, $user);
+        }
+    }
+}
+
+
 
 /**
  * Reduces lines of duplicated code for getting user name fields.
