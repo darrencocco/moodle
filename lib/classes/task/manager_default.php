@@ -38,7 +38,7 @@ define('CORE_TASK_TASKS_FILENAME', 'db/tasks.php');
  * @copyright  2013 Damyon Wiese
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class manager {
+class manager_default implements manager_interface {
 
     /**
      * @var int Used to tell the adhoc task queue to fairly distribute tasks.
